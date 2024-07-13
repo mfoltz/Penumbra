@@ -8,8 +8,6 @@ using VampireCommandFramework;
 namespace Merchants.Commands;
 internal static class MerchantCommands
 {
-    static readonly PrefabGUID invulnerable = new(1811209060);
-
     [Command(name: "spawnMerchant", shortHand: "merchant", adminOnly: true, usage: ".merchant [TraderPrefab]", description: "Spawns trader prefab at mouse location.")]
     public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader)
     {
@@ -18,13 +16,12 @@ internal static class MerchantCommands
 
         Entity character = ctx.Event.SenderCharacterEntity;
         Entity userEntity = ctx.Event.SenderUserEntity;
-
         User user = ctx.Event.User;
         int index = user.Index;
 
         PrefabGUID traderPrefab = new(trader);
 
-        if (!Core.PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(traderPrefab, out Entity traderEntity) || !traderEntity.Read<PrefabGUID>().LookupName().ToLower().Contains("char_trader"))
+        if (!Core.PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(traderPrefab, out Entity traderEntity) || !traderEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
         {
             Core.Log.LogInfo($"Couldn't find matching trader from prefab.");
             return;
@@ -53,7 +50,7 @@ internal static class MerchantCommands
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
-        if (merchantConfig < 1 || merchantConfig > 5)
+        if (merchantConfig < 1 || merchantConfig > 7)
         {
             Core.Log.LogInfo($"Merchant configuration must be between 1 and 5.");
             return;
@@ -69,7 +66,7 @@ internal static class MerchantCommands
 
         List<int> stockAmounts = merchantConfigs[4];
 
-        if (Core.ServerGameManager.HasBuff(entityInput.HoveredEntity, invulnerable.ToIdentifier()) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
         {
             var outputBuffer = entityInput.HoveredEntity.ReadBuffer<TradeOutput>();
             var entryBuffer = entityInput.HoveredEntity.ReadBuffer<TraderEntry>();
@@ -118,7 +115,7 @@ internal static class MerchantCommands
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
-        if (Core.ServerGameManager.HasBuff(entityInput.HoveredEntity, invulnerable.ToIdentifier()) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
         {
             DestroyUtility.Destroy(Core.EntityManager, entityInput.HoveredEntity);
         }
