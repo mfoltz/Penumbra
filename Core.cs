@@ -59,7 +59,7 @@ internal static class Core
         NetworkIdSystem = ServerScriptMapper.GetSingleton<NetworkIdSystem.Singleton>();
         ScriptSpawnServer = Server.GetExistingSystemManaged<ScriptSpawnServer>();
         ServerGameSettings = ServerGameSettingsSystem._Settings;
-
+        ModifyRelicBuildings();
         hasInitialized = true;
     }
     static World GetWorld(string name)
@@ -113,6 +113,33 @@ internal static class Core
         }
         return configString.Split(',').Select(int.Parse).ToList();
     }
+    static void ModifyRelicBuildings()
+    {
+        var itemMap = Core.GameDataSystem.ItemHashLookupMap;
+        foreach(PrefabGUID prefab in RelicBuildings)
+        {
+            Entity prefabEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[prefab];
+            ItemData itemData = prefabEntity.Read<ItemData>();
+            itemData.ItemCategory &= ~ItemCategory.Relic;
+            prefabEntity.Write(itemData);
+
+            itemMap[prefab] = itemData;
+        }
+        PrefabGUID silverIngot = new(-1787563914);
+        Entity silverIngotEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[silverIngot];
+        ItemData silverIngotData = silverIngotEntity.Read<ItemData>();
+        silverIngotData.SilverValue = 0f;
+        silverIngotEntity.Write(silverIngotData);
+        itemMap[silverIngot] = silverIngotData;
+    }
+
+    static readonly List<PrefabGUID> RelicBuildings =
+    [
+        new(2019195024),
+        new(-1619308732),
+        new(-222860772),
+        new(1247086852)
+    ];
 
     public static readonly Dictionary<PrefabGUID, List<PrefabGUID>> spellModSets = new()
     {
@@ -123,11 +150,11 @@ internal static class Core
         { new(-880131926), new() { new(-1144993512), new(411514116), new(-218122346), new(-1967214301), new(-111114882), new(1439297485), new(-1967899075), new(-2009288107) } }, // shadowbolt
         { new(305230608), new() { new(626026650), new(1855739816), new(156877668), new(1384658374), new(255266111), new(-1430581265) } }, // veil of blood
         { new(1575317901), new() { new(-648008702), new(-68573491), new(-960235388), new(2113057383), new(1439297485), new(-1772665607) } }, // aftershock
-        { new(1174831223), new() { new(-547116142), new(-1611128617), new(1906516980), new(1600880528), new(-1251505269), new(1930502023) } }, // chaos barrier
+        { new(-1016145613), new() { new(-547116142), new(-1611128617), new(1906516980), new(1600880528), new(-1251505269), new(1930502023) } }, // chaos barrier
         { new(1112116762), new() { new(23473943), new(10430423), new(-1414823595), new(1749175755), new(-842072895), new(2062624895), new(-581430582), new(-47350874) } }, // power surge
         { new(-358319417), new() { new(281216122), new(-1310320536), new(-2083269917), new(1886458301), new(2113057383), new(681802645) } }, // void
-        { new(1425686238), new() { new(1104681306), new(-681348970), new(2113057383), new(1439297485), new(-628722771), new(-2009288107) } }, // chaos volley
-        { new(711231628), new() { new(2000559018), new(-593156502), new(-812464660), new(1702103303), new(255266111), new(-1430581265) } }, // sanguine coil
+        { new(1019568127), new() { new(1104681306), new(-681348970), new(2113057383), new(1439297485), new(-628722771), new(-2009288107) } }, // chaos volley
+        { new(711231628), new() { new(2000559018), new(-593156502), new(-812464660), new(1702103303), new(255266111), new(-1430581265) } }, // veil of chaos
         { new(-1000260252), new() { new(1336836422), new(-1757583318), new(986977415), new(1616797198), new(-311910625), new(1222918506), new(291310353) } }, // cold snap
         { new(295045820), new() { new(-771579655), new(-30104212), new(-111114882), new(-311910625), new(950989548), new(-2009288107) } }, // crystal lance
         { new(1293609465), new() { new(-178978862), new(-581148490), new(631373543), new(1944125102), new(536126279), new(774570130), new(1930502023) } }, // frost barrier
@@ -135,7 +162,7 @@ internal static class Core
         { new(91249849), new() { new(-1070941840), new(-1916056946), new(1934366532), new(1439297485), new(681802645) } }, // ice nova
         { new(1709284795), new() { new(-292495274), new(1126070097), new(-1378154439), new(620700670), new(255266111), new(-1430581265) } }, // veil of frost
         { new(110097606), new() { new(-845453001), new(1301174222), new(-415768376), new(1891772829), new(1552774208), new(291310353), new(-1967899075), new(-1274845133) } }, // mist trance
-        { new(-303396552), new() { new(-529803606), new(1212582123), new(-1928057811), new(-1673859267), new(-1087850059) } }, // mosquito
+        { new(268059675), new() { new(-529803606), new(1212582123), new(-1928057811), new(-1673859267), new(-1087850059) } }, // mosquito
         { new(-2053450457), new() { new(928811526), new(-1904117138), new(804206378), new(1484898935), new(-47350874), new(-1967899075), new(-491408666) } }, // phantom aegis
         { new(247896794), new() { new(1531499726), new(1610681142), new(-2009288107), new(1499233761), new(-389780147), new(-1224808007), new(424876885), new(-191364711) } }, // spectral wolf
         { new(-242769430), new() { new(-1565427919), new(1531499726), new(1610681142), new(-1772665607), new(-1653068805), new(-233951066), new(-1538705520) } }, // wraith spear
@@ -146,9 +173,9 @@ internal static class Core
         { new(1071205195), new() { new(1780108774), new(-928750139), new(-635781998), new(-743834336), new(-2109940363) } }, // lightning wall
         { new(-987810170), new() { new(-1565427919), new(-2009288107), new(946721895), new(958439837), new(578859494) } }, // polarity shift
         { new(-84816111), new() { new(1215957974), new(255266111), new(-1430581265), new(-387102419), new(-115293432), new(1221500964) } }, // veil of storm
-        { new(481411985), new() { new(585605138), new(-968605931), new(1291379982), new(-612004637), new(47727933), new(419000172), new(1439297485), new(681802645) } }, // corpse explosion
+        { new(481411985), new() { new(585605138), new(-968605931), new(1291379982), new(-612004637), new(47727933), new(419000172), new(1439297485), new(681802645) } }, // bone explosion
         { new(-1204819086), new() { new(1562979558), new(538792139), new(1944307151), new(-203019589), new(-1967899075), new(-2009288107) } }, // corrupted skull
-        { new(483769006), new() { new(406584937), new(771873857), new(1163307889), new(655278112), new(-750244242), new(1830138631) } }, // death knight
+        { new(1961570821), new() { new(406584937), new(771873857), new(1163307889), new(655278112), new(-750244242), new(1830138631) } }, // death knight
         { new(2138402840), new() { new(-696735285), new(-1096014124), new(1670819844), new(-249390913), new(15549217), new(219517192), new(-770033390), new(1871790882) } }, // soulburn
         { new(-1136860480), new() { new(1930502023), new(-1729725919), new(1998410228), new(761541981), new(-649562549), new(909721987), new(-2133606415), new(-1840862497) } }, // ward of the damned
         { new(-498302954), new() { new(-319638993), new(-394612778), new(-1776361271), new(952126692), new(255266111), new(-1430581265) } }, // veil of bones

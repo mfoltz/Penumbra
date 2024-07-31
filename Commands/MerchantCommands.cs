@@ -1,8 +1,10 @@
+using BepInEx;
 using ProjectM;
 using ProjectM.Network;
 using ProjectM.Shared;
 using Stunlock.Core;
 using Unity.Entities;
+using Unity.Mathematics;
 using VampireCommandFramework;
 
 namespace Merchants.Commands;

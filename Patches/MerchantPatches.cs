@@ -73,7 +73,7 @@ internal static class MerchantPatches
                 Entity trader = Core.NetworkIdSystem._NetworkIdLookupMap._NetworkIdToEntityMap[traderPurchaseEvent.Trader];
                 var outputBuffer = trader.ReadBuffer<TradeOutput>();
                 PrefabGUID item = outputBuffer[traderPurchaseEvent.ItemIndex].Item;
-                //Core.Log.LogInfo($"Player {fromCharacter.User.Read<User>().PlatformId} has purchased {item.LookupName()}");
+                Core.Log.LogInfo($"Player {fromCharacter.User.Read<User>().PlatformId} has purchased {item.LookupName()}");
                 if (item.LookupName().Contains("Item_Jewel"))
                 {
                     ulong steamId = fromCharacter.User.Read<User>().PlatformId;
@@ -110,7 +110,12 @@ internal static class MerchantPatches
                 if (!Core.hasInitialized) continue;
                 PrefabGUID prefabGUID = entity.Read<PrefabGUID>();
                 //Core.Log.LogInfo($"Jewel item: {prefabGUID.LookupName()}");
-                if (!entity.Has<InventoryItem>() || !entity.Read<InventoryItem>().ContainerEntity.Equals(Entity.Null) || !entity.Read<InventoryItem>().ContainerEntity.Has<InventoryConnection>()) continue;
+                if (!entity.Has<InventoryItem>()) continue;
+                //Core.Log.LogInfo("Check1");
+                if (entity.Read<InventoryItem>().ContainerEntity.Equals(Entity.Null)) continue;
+                //Core.Log.LogInfo("Check2");
+                if (!entity.Read<InventoryItem>().ContainerEntity.Has<InventoryConnection>()) continue;
+                //Core.Log.LogInfo("Check3");
                 if (!entity.Read<InventoryItem>().ContainerEntity.Read<InventoryConnection>().InventoryOwner.Has<PlayerCharacter>()) continue;
                 ulong steamId = entity.Read<InventoryItem>().ContainerEntity.Read<InventoryConnection>().InventoryOwner.Read<PlayerCharacter>().UserEntity.Read<User>().PlatformId;
                 if (playerPurchases.ContainsKey(steamId) && playerPurchases[steamId].Equals(prefabGUID))
