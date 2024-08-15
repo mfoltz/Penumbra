@@ -73,7 +73,7 @@ internal static class MerchantPatches
                 Entity trader = Core.NetworkIdSystem._NetworkIdLookupMap._NetworkIdToEntityMap[traderPurchaseEvent.Trader];
                 var outputBuffer = trader.ReadBuffer<TradeOutput>();
                 PrefabGUID item = outputBuffer[traderPurchaseEvent.ItemIndex].Item;
-                Core.Log.LogInfo($"Player {fromCharacter.User.Read<User>().PlatformId} has purchased {item.LookupName()}");
+                //Core.Log.LogInfo($"Player {fromCharacter.User.Read<User>().PlatformId} has purchased {item.LookupName()}");
                 if (item.LookupName().Contains("Item_Jewel"))
                 {
                     ulong steamId = fromCharacter.User.Read<User>().PlatformId;
@@ -126,6 +126,7 @@ internal static class MerchantPatches
                     {
                         PrefabGUID abilityGroup = entity.Read<JewelInstance>().OverrideAbilityType;
                         if (abilityGroup.GuidHash.Equals(0)) abilityGroup = entity.Read<JewelInstance>().Ability;
+                        //Core.Log.LogInfo($"Check4 {abilityGroup.LookupName()}");
                         List<PrefabGUID> spellMods = Core.spellModSets[abilityGroup];
                         List<PrefabGUID> usedSpellMods = [];
                         SpellModSetComponent spellModSetComponent = entity.Read<SpellModSetComponent>();
@@ -138,8 +139,10 @@ internal static class MerchantPatches
                         if (spellMods.Contains(spellModSet.Mod5.Id)) usedSpellMods.Add(spellModSet.Mod5.Id);
                         if (spellMods.Contains(spellModSet.Mod6.Id)) usedSpellMods.Add(spellModSet.Mod6.Id);
                         if (spellMods.Contains(spellModSet.Mod7.Id)) usedSpellMods.Add(spellModSet.Mod7.Id);
+                        //Core.Log.LogInfo("Check5");
                         List<PrefabGUID> unusedSpellMods = spellMods.Except(usedSpellMods).ToList();
                         spellModSet.Count += (byte)unusedSpellMods.Count;
+                        if (spellModSet.Count > 8) spellModSet.Count = 8;
                         for (int i = 4; i < 8; i++)
                         {
                             if (i - 4 < unusedSpellMods.Count)
@@ -147,10 +150,14 @@ internal static class MerchantPatches
                                 AssignUnusedSpellMod(ref spellModSet, unusedSpellMods[i - 4], i);
                             }
                         }
+                        //Core.Log.LogInfo("Check6");
                         Core.SpellModSyncSystem_Server.AddSpellMod(ref spellModSet);
+                        //Core.Log.LogInfo("Check7");
                         spellModSetComponent.SpellMods = spellModSet;
                         entity.Write(spellModSetComponent);
+                        //Core.Log.LogInfo("Check8");
                         Core.SpellModSyncSystem_Server.OnUpdate();
+                        //Core.Log.LogInfo("Check9");
                     }
                 }
             }

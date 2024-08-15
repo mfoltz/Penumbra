@@ -125,12 +125,21 @@ internal static class Core
 
             itemMap[prefab] = itemData;
         }
+
         PrefabGUID silverIngot = new(-1787563914);
         Entity silverIngotEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[silverIngot];
         ItemData silverIngotData = silverIngotEntity.Read<ItemData>();
         silverIngotData.SilverValue = 0f;
         silverIngotEntity.Write(silverIngotData);
         itemMap[silverIngot] = silverIngotData;
+
+        PrefabGUID greaterStygianRecipe = new(830427227);
+        Entity recipeEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[greaterStygianRecipe];
+        var requirementBuffer = recipeEntity.ReadBuffer<RecipeRequirementBuffer>();
+        RecipeRequirementBuffer item = requirementBuffer[0];
+        item.Amount = 8;
+        requirementBuffer[0] = item;
+        GameDataSystem.RegisterRecipes();
     }
 
     static readonly List<PrefabGUID> RelicBuildings =

@@ -1,5 +1,6 @@
 using Il2CppInterop.Runtime;
 using ProjectM;
+using ProjectM.Network;
 using System.Collections;
 using Unity.Collections;
 using Unity.Entities;
@@ -27,6 +28,7 @@ internal class MerchantService
             Options = EntityQueryOptions.IncludeDisabled
         });
         Core.StartCoroutine(RestockTrader());
+        //Core.StartCoroutine(Debug());
     }
     static IEnumerator RestockTrader()
     {
@@ -58,6 +60,22 @@ internal class MerchantService
             yield return wait;
         }
     }
+
+    /*
+    static IEnumerator Debug()
+    {
+        WaitForSeconds wait = new(300);
+        while (true)
+        {
+            int networkIdCapacity = Core.NetworkIdSystem._NetworkIdLookupMap._NetworkIdToEntityMap.Capacity;
+            int networkIdCount = Core.NetworkIdSystem._NetworkIdLookupMap._NetworkIdToEntityMap.Count();
+            int entityCapacity = EntityManager.EntityCapacity;
+            int totalEntities = EntityManager.CalculateAliveEntityQueryCount();
+            Core.Log.LogInfo($"NetworkId Capacity: {networkIdCapacity} | NetworkId Count: {networkIdCount} | Entity Capacity: {entityCapacity} | Entity Count: {totalEntities}");
+            yield return wait;
+        }
+    }
+    */
     static IEnumerable<Entity> GetTradersEnumerable()
     {
         JobHandle handle = GetTraders(out NativeArray<Entity> traderEntities, Allocator.TempJob);
