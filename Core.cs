@@ -59,7 +59,7 @@ internal static class Core
         NetworkIdSystem = ServerScriptMapper.GetSingleton<NetworkIdSystem.Singleton>();
         ScriptSpawnServer = Server.GetExistingSystemManaged<ScriptSpawnServer>();
         ServerGameSettings = ServerGameSettingsSystem._Settings;
-        ModifyRelicBuildings();
+        ModifyRelicsAndWeapons();
         hasInitialized = true;
     }
     static World GetWorld(string name)
@@ -113,9 +113,10 @@ internal static class Core
         }
         return configString.Split(',').Select(int.Parse).ToList();
     }
-    static void ModifyRelicBuildings()
+    static void ModifyRelicsAndWeapons()
     {
         var itemMap = Core.GameDataSystem.ItemHashLookupMap;
+
         foreach(PrefabGUID prefab in RelicBuildings)
         {
             Entity prefabEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[prefab];
@@ -125,6 +126,83 @@ internal static class Core
 
             itemMap[prefab] = itemData;
         }
+
+        foreach (PrefabGUID shadowWeapon in ShadowMatterWeapons)
+        {
+            Entity prefabEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[shadowWeapon];
+            if (prefabEntity.Has<ModifyUnitStatBuff_DOTS>())
+            {
+                var buffer = prefabEntity.ReadBuffer<ModifyUnitStatBuff_DOTS>();
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    ModifyUnitStatBuff_DOTS statBuff = buffer[i];
+
+                    if (i == 0)
+                    {
+                        float value = statBuff.Value + 7f;
+                        statBuff.Value = (int)value;
+                        buffer[i] = statBuff;
+                    }
+                    else if (i == 1)
+                    {
+                        if (statBuff.StatType.Equals(UnitStatType.ResourcePower))
+                        {
+                            statBuff.Value += 6f;
+                            buffer[i] = statBuff;
+                        }
+                        else
+                        {
+                            statBuff.Value += 0.03f;
+                            buffer[i] = statBuff;
+                        }
+                    }
+                    else if (i == 2)
+                    {
+                        statBuff.Value += 6f;
+                        buffer[i] = statBuff;
+                    }
+                }
+            }
+        }
+
+        /*
+        Entity castEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[styxPrimaryLastHitCast];
+        if (castEntity.Has<ModifyMovementDuringCastData>())
+        {
+            //Log.LogInfo($"ModifyMovementDuringCastData pre: {castEntity.Read<ModifyMovementDuringCastData>().Duration._Value}");
+            castEntity.With((ref ModifyMovementDuringCastData castMovementData) =>
+            {
+                castMovementData.Duration._Value = 1f;
+            });
+            //Log.LogInfo($"ModifyMovementDuringCastData post: {castEntity.Read<ModifyMovementDuringCastData>().Duration._Value}");
+        }
+        if (castEntity.Has<AbilityCastTimeData>())
+        {
+            castEntity.With((ref AbilityCastTimeData castTimeData) =>
+            {
+                castTimeData.PostCastTime._Value = 0.8f;
+            });
+        }
+        
+
+        Entity castEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[highlordPrimaryFirstCast];
+        if (castEntity.Has<ModifyMovementDuringCastData>())
+        {
+            castEntity.With((ref ModifyMovementDuringCastData movementData) =>
+            {
+                movementData.MovementSpeedMultiplier._Value = 0.15f;
+            });
+        }
+
+        castEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[highlordPrimarySecondCast];
+        if (castEntity.Has<ModifyMovementDuringCastData>())
+        {
+            castEntity.With((ref ModifyMovementDuringCastData movementData) =>
+            {
+                movementData.MovementSpeedMultiplier._Value = 0.15f;
+            });
+        }
+        */
 
         PrefabGUID silverIngot = new(-1787563914);
         Entity silverIngotEntity = PrefabCollectionSystem._PrefabGuidToEntityMap[silverIngot];
@@ -142,6 +220,30 @@ internal static class Core
         GameDataSystem.RegisterRecipes();
     }
 
+    // shadowmatter weapons with ability group prefabs to use
+    // Item_Weapon_GreatSword_T09_ShadowMatter PrefabGuid(1322254792) -328302080
+    // Item_Weapon_Crossbow_T09_ShadowMatter PrefabGuid(1957540013) -1770479364
+    // Item_Weapon_Spear_T09_ShadowMatter PrefabGuid(1307774440) 992015964
+    // Item_Weapon_Slashers_T09_ShadowMatter PrefabGuid(506082542) -1965562520
+    // Item_Weapon_Whip_T09_ShadowMatter PrefabGuid(567413754) -499397494
+    // Item_Weapon_Pistols_T09_ShadowMatter PrefabGuid(-1265586439) 688350142
+    // Item_Weapon_Reaper_T09_ShadowMatter PrefabGuid(-465491217) 346834991
+
+    public static readonly List<PrefabGUID> ShadowMatterWeapons =
+    [
+        //new(1322254792),
+        //new(1957540013),
+        new(1307774440)
+    ];
+
+    public static readonly Dictionary<PrefabGUID, List<PrefabGUID>> ShadowMatterAbilitiesMap = new()
+    {
+        //{ new(1322254792), new List<PrefabGUID> { new(-328302080), new(-2126197617), new(938684260) } },  // GreatSword
+        //{ new(1957540013), new List<PrefabGUID> { new(-1770479364), new(765386506), new(1766924388) } },  Crossbow
+        { new(1307774440), new List<PrefabGUID> { new(-1965562520), new(1826128809), new(1730729556) } }   // Spear
+        //{ new(506082542), new List<PrefabGUID> { new(-1965562520), new(1450902136), new(1416508240) } }  // Slashers
+    };
+
     static readonly List<PrefabGUID> RelicBuildings =
     [
         new(2019195024),
@@ -149,6 +251,10 @@ internal static class Core
         new(-222860772),
         new(1247086852)
     ];
+
+    static readonly PrefabGUID styxPrimaryLastHitCast = new(1658073310);
+    static readonly PrefabGUID highlordPrimaryFirstCast = new(761892370);
+    static readonly PrefabGUID highlordPrimarySecondCast = new(-560217827);
 
     public static readonly Dictionary<PrefabGUID, List<PrefabGUID>> spellModSets = new()
     {

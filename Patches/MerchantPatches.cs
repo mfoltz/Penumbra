@@ -4,6 +4,7 @@ using ProjectM.Behaviours;
 using ProjectM.Network;
 using ProjectM.Shared;
 using ProjectM.Shared.Systems;
+using Steamworks;
 using Stunlock.Core;
 using Unity.Collections;
 using Unity.Entities;
@@ -14,10 +15,13 @@ namespace Merchants.Patches;
 internal static class MerchantPatches
 {
     static DebugEventsSystem DebugEventsSystem => Core.DebugEventsSystem;
+
     static readonly PrefabGUID NoctemBEH = new(-1999051184);
     static readonly PrefabGUID invulnerable = new(-480024072);
-    static Random Random = new();
-    static Dictionary<ulong, PrefabGUID> playerPurchases = [];
+
+    static readonly Random Random = new();
+
+    static readonly Dictionary<ulong, PrefabGUID> PlayerPurchases = [];
 
     [HarmonyPatch(typeof(SpawnTransformSystem_OnSpawn), nameof(SpawnTransformSystem_OnSpawn.OnUpdate))]
     [HarmonyPrefix]
@@ -28,7 +32,8 @@ internal static class MerchantPatches
         {
             foreach (Entity entity in entities)
             {
-                if (!Core.hasInitialized) continue;
+                if (!Core.hasInitialized) return;
+
                 if (entity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader") && entity.Read<UnitLevel>().Level._Value == 100)
                 {
                     UnitStats unitStats = entity.Read<UnitStats>();
@@ -66,24 +71,86 @@ internal static class MerchantPatches
         {
             foreach (Entity entity in entities)
             {
-                if (!Core.hasInitialized) continue;
-                //entity.LogComponentTypes();
+                if (!Core.hasInitialized) return;
                 TraderPurchaseEvent traderPurchaseEvent = entity.Read<TraderPurchaseEvent>();
+
                 FromCharacter fromCharacter = entity.Read<FromCharacter>();
+                ulong steamId = fromCharacter.User.Read<User>().PlatformId;
+
                 Entity trader = Core.NetworkIdSystem._NetworkIdLookupMap._NetworkIdToEntityMap[traderPurchaseEvent.Trader];
                 var outputBuffer = trader.ReadBuffer<TradeOutput>();
+
                 PrefabGUID item = outputBuffer[traderPurchaseEvent.ItemIndex].Item;
-                //Core.Log.LogInfo($"Player {fromCharacter.User.Read<User>().PlatformId} has purchased {item.LookupName()}");
-                if (item.LookupName().Contains("Item_Jewel"))
+                string itemName = item.LookupName();
+
+                if (itemName.Contains("Item_Jewel"))
                 {
-                    ulong steamId = fromCharacter.User.Read<User>().PlatformId;
-                    if (!playerPurchases.ContainsKey(steamId))
+                    if (!PlayerPurchases.ContainsKey(steamId))
                     {
-                        playerPurchases.Add(steamId, item);
+                        PlayerPurchases.Add(steamId, item);
                     }
                     else
                     {
-                        playerPurchases[steamId] = item;
+                        PlayerPurchases[steamId] = item;
+                    }
+                }
+                /*
+                else if (itemName.Contains("ShadowMatter"))
+                {
+                    if (!PlayerPurchases.ContainsKey(steamId))
+                    {
+                        PlayerPurchases.Add(steamId, item);
+                    }
+                    else
+                    {
+                        PlayerPurchases[steamId] = item;
+                    }
+                }
+                */
+            }
+        }
+        catch (Exception ex)
+        {
+            Core.Log.LogInfo(ex);
+        }
+        finally
+        {
+            entities.Dispose();
+        }
+    }
+
+    /*
+    [HarmonyPatch(typeof(ReactToInventoryChangedSystem), nameof(ReactToInventoryChangedSystem.OnUpdate))]
+    [HarmonyPrefix]
+    static void OnUpdatePrefix(ReactToInventoryChangedSystem __instance)
+    {
+        NativeArray<Entity> entities = __instance.__query_2096870024_0.ToEntityArray(Allocator.Temp);
+        try
+        {
+            foreach (var entity in entities)
+            {
+                if (!Core.hasInitialized) return;
+
+                InventoryChangedEvent inventoryChangedEvent = entity.Read<InventoryChangedEvent>();
+                Entity inventory = inventoryChangedEvent.InventoryEntity;
+
+                if (!inventory.Exists()) continue;
+
+                if (inventoryChangedEvent.ChangeType.Equals(InventoryChangedEventType.Obtained) && inventory.Has<InventoryConnection>())
+                {
+                    InventoryConnection inventoryConnection = inventory.Read<InventoryConnection>();
+                    if (!inventoryConnection.InventoryOwner.Has<UserOwner>()) continue;
+
+                    UserOwner userOwner = inventoryConnection.InventoryOwner.Read<UserOwner>();
+                    Entity userEntity = userOwner.Owner._Entity;
+                    if (!userEntity.Exists()) continue;
+
+                    PrefabGUID itemPrefab = inventoryChangedEvent.Item;
+                    ulong steamId = userEntity.Read<User>().PlatformId;
+
+                    if (PlayerPurchases.ContainsKey(steamId) && PlayerPurchases[steamId].Equals(itemPrefab))
+                    {
+                        PlayerPurchases.Remove(steamId);
                     }
                 }
             }
@@ -97,6 +164,7 @@ internal static class MerchantPatches
             entities.Dispose();
         }
     }
+    */
 
     [HarmonyPatch(typeof(JewelSpawnSystem), nameof(JewelSpawnSystem.OnUpdate))]
     [HarmonyPostfix]
@@ -107,7 +175,8 @@ internal static class MerchantPatches
         {
             foreach (Entity entity in entities)
             {
-                if (!Core.hasInitialized) continue;
+                if (!Core.hasInitialized) return;
+
                 PrefabGUID prefabGUID = entity.Read<PrefabGUID>();
                 //Core.Log.LogInfo($"Jewel item: {prefabGUID.LookupName()}");
                 if (!entity.Has<InventoryItem>()) continue;
@@ -118,9 +187,9 @@ internal static class MerchantPatches
                 //Core.Log.LogInfo("Check3");
                 if (!entity.Read<InventoryItem>().ContainerEntity.Read<InventoryConnection>().InventoryOwner.Has<PlayerCharacter>()) continue;
                 ulong steamId = entity.Read<InventoryItem>().ContainerEntity.Read<InventoryConnection>().InventoryOwner.Read<PlayerCharacter>().UserEntity.Read<User>().PlatformId;
-                if (playerPurchases.ContainsKey(steamId) && playerPurchases[steamId].Equals(prefabGUID))
+                if (PlayerPurchases.ContainsKey(steamId) && PlayerPurchases[steamId].Equals(prefabGUID))
                 {
-                    playerPurchases.Remove(steamId);
+                    PlayerPurchases.Remove(steamId);
                     //Core.Log.LogInfo($"Player {steamId} has obtained {prefabGUID.LookupName()}");
                     if (entity.Has<SpellModSetComponent>())
                     {

@@ -174,11 +174,11 @@ internal class Plugin : BasePlugin
         _fifthMerchantInputAmounts = InitConfigEntry("FifthMerchant", "InputAmounts", "250,250,250,250,250", "The item amounts for the fifth merchant's input.");
         _fifthMerchantStockAmounts = InitConfigEntry("FifthMerchant", "StockAmounts", "99,99,99,99,99", "The stock amounts for the fifth merchant's outputs.");
 
-        _sixthMerchantOutputItems = InitConfigEntry("SixthMerchant", "OutputItems", "1412786604,2023809276,97169184,-147757377,-1796954295,271061481", "The item prefabs for the sixth merchant's output.");
-        _sixthMerchantOutputAmounts = InitConfigEntry("SixthMerchant", "OutputAmounts", "1,1,1,1,1,1", "The item amounts for the sixth merchant's output.");
-        _sixthMerchantInputItems = InitConfigEntry("SixthMerchant", "InputItems", "1354115931,-1983566585,750542699,-2020212226,-106283194,188653143", "The item prefabs for the sixth merchant's input.");
-        _sixthMerchantInputAmounts = InitConfigEntry("SixthMerchant", "InputAmounts", "1,1,1,1,1,1", "The item amounts for the sixth merchant's input.");
-        _sixthMerchantStockAmounts = InitConfigEntry("SixthMerchant", "StockAmounts", "99,99,99,99,99,99", "The stock amounts for the sixth merchant's outputs.");
+        _sixthMerchantOutputItems = InitConfigEntry("SixthMerchant", "OutputItems", "1412786604,2023809276,97169184,-147757377,-1796954295,271061481,1322254792,1957540013,1307774440", "The item prefabs for the sixth merchant's output.");
+        _sixthMerchantOutputAmounts = InitConfigEntry("SixthMerchant", "OutputAmounts", "1,1,1,1,1,1,1,1,1", "The item amounts for the sixth merchant's output.");
+        _sixthMerchantInputItems = InitConfigEntry("SixthMerchant", "InputItems", "1354115931,-1983566585,750542699,-2020212226,-106283194,188653143,-77477508,-77477508,-77477508", "The item prefabs for the sixth merchant's input.");
+        _sixthMerchantInputAmounts = InitConfigEntry("SixthMerchant", "InputAmounts", "1,1,1,1,1,1,3,3,3", "The item amounts for the sixth merchant's input.");
+        _sixthMerchantStockAmounts = InitConfigEntry("SixthMerchant", "StockAmounts", "99,99,99,99,99,99,5,5,5", "The stock amounts for the sixth merchant's outputs.");
 
         _seventhMerchantOutputItems = InitConfigEntry("SeventhMerchant", "OutputItems", "1354115931,-1983566585,750542699,-2020212226,-106283194,188653143,-77477508,-1629804427,1334469825,1488205677,-182923609", "The item prefabs for the seventh merchant's output.");
         _seventhMerchantOutputAmounts = InitConfigEntry("SeventhMerchant", "OutputAmounts", "1,1,1,1,1,1,1,1,1,1,1", "The item amounts for the seventh merchant's output.");
@@ -186,6 +186,22 @@ internal class Plugin : BasePlugin
         _seventhMerchantInputAmounts = InitConfigEntry("SeventhMerchant", "InputAmounts", "500,500,500,500,500,500,1000,1500,1500,1500,1500", "The item amounts for the seventh merchant's input.");
         _seventhMerchantStockAmounts = InitConfigEntry("SeventhMerchant", "StockAmounts", "99,99,99,99,99,99,99,99,99,99,99", "The stock amounts for the seventh merchant's outputs.");
     }
+
+    // shadowmatter weapons with good animated abilities to use
+    // Item_Weapon_GreatSword_T09_ShadowMatter PrefabGuid(1322254792) -328302080
+    // Item_Weapon_Crossbow_T09_ShadowMatter PrefabGuid(1957540013) -1770479364
+    // Item_Weapon_Spear_T09_ShadowMatter PrefabGuid(1307774440) 992015964
+
+    // no good matches found for these weapons
+    // Item_Weapon_Sword_T09_ShadowMatter PrefabGuid(-1215982687)
+    // Item_Weapon_Mace_T09_ShadowMatter PrefabGuid(160471982)
+    // Item_Weapon_Longbow_T09_ShadowMatter PrefabGuid(1283345494)
+    // Item_Weapon_Axe_T09_ShadowMatter PrefabGuid(2100090213)
+    // Item_Weapon_Reaper_T09_ShadowMatter PrefabGuid(-465491217)
+    // Item_Weapon_Whip_T09_ShadowMatter PrefabGuid(567413754)
+    // Item_Weapon_Pistols_T09_ShadowMatter PrefabGuid(-1265586439)
+    // Item_Weapon_Slashers_T09_ShadowMatter PrefabGuid(506082542)
+
 
     static ConfigEntry<T> InitConfigEntry<T>(string section, string key, T defaultValue, string description)
     {

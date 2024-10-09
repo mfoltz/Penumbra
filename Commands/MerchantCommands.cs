@@ -54,7 +54,7 @@ internal static class MerchantCommands
 
         if (merchantConfig < 1 || merchantConfig > 7)
         {
-            Core.Log.LogInfo($"Merchant configuration must be between 1 and 5.");
+            Core.Log.LogInfo($"Merchant configuration must be between 1 and 7.");
             return;
         }
 
