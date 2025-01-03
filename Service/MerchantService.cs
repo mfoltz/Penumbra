@@ -7,12 +7,17 @@ using Unity.Entities;
 using Unity.Jobs;
 using UnityEngine;
 
-namespace Merchants.Services;
+namespace Penumbra.Service;
 internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
+    
+    static readonly WaitForSeconds Delay = new(150);
 
-    static readonly int RestockMinutes = Plugin.RestockTime;
+    static readonly Dictionary<Entity, DateTime> NextRestockTimes = [];
+    static readonly Dictionary<int, int> MerchantRestockTimes = Core.ParseConfigString(Plugin.MerchantRestockTimes)
+        .Select((value, index) => new { Key = index + 1, Value = value })
+        .ToDictionary(pair => pair.Key, pair => pair.Value);
 
     static readonly ComponentType[] TraderComponent =
         [
@@ -27,52 +32,66 @@ internal class MerchantService
             All = TraderComponent,
             Options = EntityQueryOptions.IncludeDisabled
         });
+
         Core.StartCoroutine(RestockTrader());
-        //Core.StartCoroutine(Debug());
     }
     static IEnumerator RestockTrader()
     {
-        WaitForSeconds wait = new(60 * RestockMinutes);
-        WaitForSeconds startDelay = new(60);
         while (true)
         {
-            yield return startDelay;
-
             IEnumerable<Entity> traders = GetTradersEnumerable();
+
             foreach (Entity entity in traders)
             {
                 if (entity.Has<Trader>() && entity.Read<UnitStats>().FireResistance._Value.Equals(10000)) // check for mod merchants
                 {
                     Trader trader = entity.Read<Trader>();
-                    if (trader.RestockTime >= 1 && trader.RestockTime <= 7) // double-check for mod merchants
+
+                    if (trader.RestockTime >= 1 && trader.RestockTime <= 5) // double-check for mod merchants
                     {
                         int merchantConfig = (int)trader.RestockTime;
-                        List<int> restockAmounts = Core.MerchantMap[merchantConfig][4];
-                        var entryBuffer = entity.ReadBuffer<TraderEntry>();
 
-                        if (entryBuffer.Length != restockAmounts.Count) // update inventory
+                        // Initialize the next restock time for the merchant if not already set
+                        if (!NextRestockTimes.ContainsKey(entity))
                         {
-                            UpdateMerchantInventory(entity, merchantConfig);
+                            NextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(MerchantRestockTimes[merchantConfig]);
+                            //Core.Log.LogInfo($"Initialized restock time for merchant {entity} to {NextRestockTimes[entity]}!");
                         }
-                        else // restock inventory
+
+                        // Check if the current time has passed the next restock time
+                        if (DateTime.UtcNow >= NextRestockTimes[entity])
                         {
-                            for (int i = 0; i < restockAmounts.Count; i++)
+                            //Core.Log.LogInfo($"Restocking merchant {entity} ({DateTime.UtcNow}|{NextRestockTimes[entity]})");
+                            List<int> restockAmounts = Core.MerchantStockMap[merchantConfig][4];
+                            var entryBuffer = entity.ReadBuffer<TraderEntry>();
+
+                            if (entryBuffer.Length != restockAmounts.Count) // Update inventory
                             {
-                                var item = entryBuffer[i];
-                                item.StockAmount = (ushort)restockAmounts[i];
-                                entryBuffer[i] = item;
+                                UpdateMerchantInventory(entity, merchantConfig);
                             }
+                            else // Restock inventory
+                            {
+                                for (int i = 0; i < restockAmounts.Count; i++)
+                                {
+                                    var item = entryBuffer[i];
+                                    item.StockAmount = (ushort)restockAmounts[i];
+                                    entryBuffer[i] = item;
+                                }
+                            }
+
+                            // Update the next restock time
+                            NextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(MerchantRestockTimes[merchantConfig]);
                         }
                     }
                 }
             }
 
-            yield return wait;
+            yield return Delay;
         }
     }
     static void UpdateMerchantInventory(Entity merchant, int merchantConfig)
     {
-        List<List<int>> merchantConfigs = Core.MerchantMap[merchantConfig];
+        List<List<int>> merchantConfigs = Core.MerchantStockMap[merchantConfig];
 
         List<PrefabGUID> outputItems = merchantConfigs[0].Select(x => new PrefabGUID(x)).ToList();
         List<int> outputAmounts = merchantConfigs[1];
@@ -115,10 +134,10 @@ internal class MerchantService
             {
                 RechargeInterval = 10,
                 CostCount = 1,
-                CostStartIndex = (byte)(i),
+                CostStartIndex = (byte)i,
                 FullRechargeTime = 60,
                 OutputCount = 1,
-                OutputStartIndex = (byte)(i),
+                OutputStartIndex = (byte)i,
                 StockAmount = (ushort)stockAmounts[i]
             });
         }

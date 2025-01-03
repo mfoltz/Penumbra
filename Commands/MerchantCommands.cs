@@ -1,17 +1,23 @@
-using BepInEx;
+using Il2CppInterop.Runtime;
 using ProjectM;
+using ProjectM.Gameplay.Scripting;
 using ProjectM.Network;
 using ProjectM.Shared;
 using Stunlock.Core;
 using Unity.Entities;
-using Unity.Mathematics;
 using VampireCommandFramework;
 
-namespace Merchants.Commands;
+namespace Penumbra.Commands;
+
+[CommandGroup("penumbra")]
 internal static class MerchantCommands
 {
-    [Command(name: "spawnMerchant", shortHand: "merchant", adminOnly: true, usage: ".merchant [TraderPrefab]", description: "Spawns trader prefab at mouse location.")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader)
+    static readonly PrefabGUID NoctemMajorTrader = new(1631713257);
+
+    const string allowedName = "Abattoir";
+
+    [Command(name: "spawnmerchant", shortHand: "spawn", adminOnly: true, usage: ".penumbra spawn", description: "Spawns CHAR_Trader_Noctem_Major PrefabGuid(1631713257) at mouse location.")]
+    public static void SpawnMerchantCommand(ChatCommandContext ctx)
     {
         EntityCommandBuffer entityCommandBuffer = Core.EntityCommandBufferSystem.CreateCommandBuffer();
         DebugEventsSystem debugEventsSystem = Core.DebugEventsSystem;
@@ -21,20 +27,12 @@ internal static class MerchantCommands
         User user = ctx.Event.User;
         int index = user.Index;
 
-        PrefabGUID traderPrefab = new(trader);
-
-        if (!Core.PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(traderPrefab, out Entity traderEntity) || !traderEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
-        {
-            Core.Log.LogInfo($"Couldn't find matching trader from prefab.");
-            return;
-        }
-
         FromCharacter fromCharacter = new() { Character = character, User = userEntity };
         EntityInput entityInput = character.Read<EntityInput>();
 
         SpawnDebugEvent debugEvent = new()
         {
-            PrefabGuid = traderPrefab,
+            PrefabGuid = NoctemMajorTrader,
             Control = false,
             Roam = false,
             Team = SpawnDebugEvent.TeamEnum.Neutral,
@@ -44,21 +42,23 @@ internal static class MerchantCommands
         };
 
         debugEventsSystem.SpawnDebugEvent(index, ref debugEvent, entityCommandBuffer, ref fromCharacter);
+
+        ctx.Reply("Spawned mod merchant at mouse position!");
     }
 
-    [Command(name: "applyMerchant", shortHand: "apply", adminOnly: true, usage: ".apply [#]", description: "Applies merchant configuration to hovered merchant.")]
+    [Command(name: "modifystock", shortHand: "stock", adminOnly: true, usage: ".penumbra stock [#]", description: "Applies merchant stock configuration to hovered merchant.")]
     public static void ApplyMerchantCommand(ChatCommandContext ctx, int merchantConfig)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
-        if (merchantConfig < 1 || merchantConfig > 7)
+        if (merchantConfig < 1 || merchantConfig > 5)
         {
-            Core.Log.LogInfo($"Merchant configuration must be between 1 and 7.");
+            ctx.Reply($"Merchant wares must be between <color=white>{1}</color> and <color=white>{5}</color>.");
             return;
         }
 
-        List<List<int>> merchantConfigs = Core.MerchantMap[merchantConfig];
+        List<List<int>> merchantConfigs = Core.MerchantStockMap[merchantConfig];
         
         List<PrefabGUID> outputItems = merchantConfigs[0].Select(x => new PrefabGUID(x)).ToList();
         List<int> outputAmounts = merchantConfigs[1];
@@ -68,7 +68,7 @@ internal static class MerchantCommands
 
         List<int> stockAmounts = merchantConfigs[4];
 
-        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().Equals(NoctemMajorTrader))
         {
             var outputBuffer = entityInput.HoveredEntity.ReadBuffer<TradeOutput>();
             var entryBuffer = entityInput.HoveredEntity.ReadBuffer<TraderEntry>();
@@ -103,15 +103,18 @@ internal static class MerchantCommands
                     StockAmount = (ushort)stockAmounts[i]
                 });
             }
+
             entityInput.HoveredEntity.Write(new Trader { RestockTime = merchantConfig, NextRestockTime = 0, PrevRestockTime = 0 });
+
+            ctx.Reply($"Wares (<color=white>{merchantConfig}</color>) updated for mod merchant!");
         }
         else
         {
-            Core.Log.LogInfo($"Hovered entity is not a valid merchant to configure.");
+            ctx.Reply($"Hovered entity is not a mod merchant!");
         }
     }
 
-    [Command(name: "removeMerchant", shortHand: "remove", adminOnly: true, usage: ".remove", description: "Destroys hovered merchant.")]
+    [Command(name: "removemerchant", shortHand: "remove", adminOnly: true, usage: ".penumbra remove", description: "Destroys hovered merchant.")]
     public static void RemoveMerchantCommand(ChatCommandContext ctx)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
@@ -123,7 +126,78 @@ internal static class MerchantCommands
         }
         else
         {
-            Core.Log.LogInfo($"Hovered entity is not a valid merchant to remove.");
+            ctx.Reply($"Hovered entity is not a mod merchant!");
+        }
+    }
+
+    [Command(name: "restorelink", shortHand: "link", adminOnly: true, usage: ".penumbra link [PrefabGUID]", description: "Restores link between attachedBuffer entry and abilityGroupSlotBuffer entry if severed.")]
+    public static void RestoreLinkCommand(ChatCommandContext ctx, int abilityGroup)
+    {
+        PrefabGUID abilityGroupPrefabGUID = new(abilityGroup);
+        Entity character = ctx.Event.SenderCharacterEntity;
+        string playerName = ctx.User.CharacterName.Value;
+
+        if (playerName != allowedName)
+        {
+            ctx.Reply($"Nope.");
+            return;
+        }
+
+        if (!Core.PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(abilityGroupPrefabGUID, out Entity abilityGroupPrefab) || !abilityGroupPrefab.Has<AbilityGroupInfo>())
+        {
+            ctx.Reply($"AbilityGroup prefabGUID not found or not a valid ability group!");
+            return;
+        }
+
+        if (character.TryGetBuffer<AttachedBuffer>(out var attachedBuffer) && character.TryGetBuffer<AbilityGroupSlotBuffer>(out var abilityGroupSlotBuffer)) // get entity with entered PrefabGUID in attachedBuffer, change slotIndex on AbilityGroupState
+        {                                                                                                                                                     // from that to match the abilityGroupSlot entity with same PrefabGUID and missing state entity
+            for (int i = 0; i < attachedBuffer.Length; i++)
+            {
+                AttachedBuffer attachedBufferElement = attachedBuffer[i];
+
+                if (attachedBufferElement.PrefabGuid == abilityGroupPrefabGUID)
+                {
+                    Entity attachedEntity = attachedBufferElement.Entity;
+                    int slotIndex = attachedEntity.TryGetComponent(out AbilityGroupState abilityGroupState) ? abilityGroupState.SlotIndex : -1;
+
+                    if (slotIndex != -1)
+                    {
+                        for (int j = 0; j < abilityGroupSlotBuffer.Length; j++)
+                        {
+                            AbilityGroupSlotBuffer abilityGroupSlotBufferElement = abilityGroupSlotBuffer[j];
+
+                            if (abilityGroupSlotBufferElement.BaseAbilityGroupOnSlot == abilityGroupPrefabGUID && slotIndex != j)
+                            {
+                                Entity abilityGroupSlotEntity = abilityGroupSlotBufferElement.GroupSlotEntity.GetEntityOnServer();
+
+                                if (abilityGroupSlotEntity.TryGetComponent(out AbilityGroupSlot abilityGroupSlot) && !abilityGroupSlot.StateEntity.GetSyncedEntityOrNull().Exists())
+                                {
+                                    abilityGroupSlot.StateEntity = NetworkedEntity.ServerEntity(attachedEntity);
+                                    abilityGroupState.SlotIndex = abilityGroupSlot.SlotId;
+
+                                    abilityGroupSlotEntity.Write(abilityGroupSlot);
+                                    attachedEntity.Write(abilityGroupState);
+
+                                    ctx.Reply($"Restored link for <color=white>{abilityGroupPrefabGUID.LookupName()}</color>!");
+                                    return;
+                                }
+                            }
+                        }
+
+                        ctx.Reply($"Couldn't find any matching abilityGroupSlot entities with missing abilityGroupStates!");
+                    }
+                    else
+                    {
+                        ctx.Reply($"Couldn't get slotIndex for attached entity!");
+                    }
+                }
+            }
+
+            ctx.Reply($"Couldn't find <color=white>{abilityGroupPrefabGUID.LookupName()}</color> in attachedBuffer!");
+        }
+        else
+        {
+            ctx.Reply($"Couldn't get attachedBuffer or abilityGroupSlotBuffer for character!");
         }
     }
 }

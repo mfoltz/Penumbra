@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Entities;
 
-namespace Merchants;
+namespace Penumbra;
 internal static class Extensions
 {
     static EntityManager EntityManager => Core.EntityManager;
@@ -85,6 +85,11 @@ internal static class Extensions
         var ct = new ComponentType(Il2CppType.Of<T>());
         return EntityManager.HasComponent(entity, ct);
     }
+    public static string LookupName(this PrefabGUID prefabGUID)
+    {
+        return (PrefabCollectionSystem.PrefabGuidToNameDictionary.ContainsKey(prefabGUID)
+            ? PrefabCollectionSystem.PrefabGuidToNameDictionary[prefabGUID] + " " + prefabGUID : "Guid Not Found").ToString();
+    }
     public static void LogComponentTypes(this Entity entity)
     {
         NativeArray<ComponentType>.Enumerator enumerator = EntityManager.GetComponentTypes(entity).GetEnumerator();
@@ -95,11 +100,6 @@ internal static class Extensions
             Core.Log.LogInfo($"{current}");
         }
         Core.Log.LogInfo("===");
-    }
-    public static string LookupName(this PrefabGUID prefabGUID)
-    {
-        return (PrefabCollectionSystem.PrefabGuidToNameDictionary.ContainsKey(prefabGUID)
-            ? PrefabCollectionSystem.PrefabGuidToNameDictionary[prefabGUID] + " " + prefabGUID : "Guid Not Found").ToString();
     }
     public static void Add<T>(this Entity entity)
     {
@@ -184,13 +184,26 @@ internal static class Extensions
     {
         return EntityManager.Exists(entity);
     }
+    public static bool IsDisabled(this Entity entity)
+    {
+        return entity.Has<Disabled>();
+    }
     public static bool Disabled(this Entity entity)
     {
         return entity.Has<Disabled>();
     }
     public static ulong GetSteamId(this Entity entity)
     {
-        return entity.Read<PlayerCharacter>().UserEntity.Read<User>().PlatformId;
+        if (entity.TryGetComponent(out PlayerCharacter playerCharacter))
+        {
+            return playerCharacter.UserEntity.Read<User>().PlatformId;
+        }
+        else if (entity.TryGetComponent(out User user))
+        {
+            return user.PlatformId;
+        }
+
+        return 0;
     }
     public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
     {
@@ -198,5 +211,43 @@ internal static class Extensions
         {
             action(item);
         }
+    }
+    public static PrefabGUID GetPrefabGUID(this Entity entity)
+    {
+        if (entity.TryGetComponent(out PrefabGUID prefabGUID)) return prefabGUID;
+        return PrefabGUID.Empty;
+    }
+    public static Entity GetUserEntity(this Entity character)
+    {
+        if (character.TryGetComponent(out PlayerCharacter playerCharacter)) return playerCharacter.UserEntity;
+        return Entity.Null;
+    }
+    public static User GetUser(this Entity character)
+    {
+        User user = User.Empty;
+        if (character.TryGetComponent(out PlayerCharacter playerCharacter) && playerCharacter.UserEntity.TryGetComponent(out user)) return user;
+        return user;
+    }
+    public static bool HasBuff(this Entity entity, PrefabGUID buffPrefabGUID)
+    {
+        return ServerGameManager.HasBuff(entity, buffPrefabGUID.ToIdentifier());
+    }
+    public static bool TryGetBuff(this Entity entity, PrefabGUID buffPrefabGUID, out Entity buffEntity)
+    {
+        if (ServerGameManager.TryGetBuff(entity, buffPrefabGUID.ToIdentifier(), out buffEntity))
+        {
+            return true;
+        }
+
+        return false;
+    }
+    public static unsafe bool TryGetBuffer<T>(this Entity entity, out DynamicBuffer<T> dynamicBuffer) where T : struct
+    {
+        if (ServerGameManager.TryGetBuffer(entity, out dynamicBuffer))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

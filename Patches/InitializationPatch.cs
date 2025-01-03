@@ -1,7 +1,7 @@
 using HarmonyLib;
 using Unity.Scenes;
 
-namespace Merchants.Patches;
+namespace Penumbra.Patches;
 
 [HarmonyPatch]
 internal static class InitializationPatch
@@ -13,6 +13,7 @@ internal static class InitializationPatch
         try
         {
             Core.Initialize();
+
             if (Core.hasInitialized)
             {
                 Core.Log.LogInfo($"|{MyPluginInfo.PLUGIN_NAME}[{MyPluginInfo.PLUGIN_VERSION}] initialized|");
