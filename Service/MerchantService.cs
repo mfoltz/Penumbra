@@ -12,24 +12,24 @@ internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
     
-    static readonly WaitForSeconds Delay = new(150);
+    static readonly WaitForSeconds _delay = new(150);
 
-    static readonly Dictionary<Entity, DateTime> NextRestockTimes = [];
-    static readonly Dictionary<int, int> MerchantRestockTimes = Core.ParseConfigString(Plugin.MerchantRestockTimes)
+    static readonly Dictionary<Entity, DateTime> _nextRestockTimes = [];
+    static readonly Dictionary<int, int> _merchantRestockTimes = Core.ParseConfigString(Plugin.MerchantRestockTimes)
         .Select((value, index) => new { Key = index + 1, Value = value })
         .ToDictionary(pair => pair.Key, pair => pair.Value);
 
-    static readonly ComponentType[] TraderComponent =
-        [
-            ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
-        ];
+    static readonly ComponentType[] _traderComponent =
+    [
+        ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
+    ];
 
-    static EntityQuery TraderQuery;
+    static EntityQuery _traderQuery;
     public MerchantService()
     {
-        TraderQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
+        _traderQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
         {
-            All = TraderComponent,
+            All = _traderComponent,
             Options = EntityQueryOptions.IncludeDisabled
         });
 
@@ -52,14 +52,14 @@ internal class MerchantService
                         int merchantConfig = (int)trader.RestockTime;
 
                         // Initialize the next restock time for the merchant if not already set
-                        if (!NextRestockTimes.ContainsKey(entity))
+                        if (!_nextRestockTimes.ContainsKey(entity))
                         {
-                            NextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(MerchantRestockTimes[merchantConfig]);
+                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(_merchantRestockTimes[merchantConfig]);
                             //Core.Log.LogInfo($"Initialized restock time for merchant {entity} to {NextRestockTimes[entity]}!");
                         }
 
                         // Check if the current time has passed the next restock time
-                        if (DateTime.UtcNow >= NextRestockTimes[entity])
+                        if (DateTime.UtcNow >= _nextRestockTimes[entity])
                         {
                             //Core.Log.LogInfo($"Restocking merchant {entity} ({DateTime.UtcNow}|{NextRestockTimes[entity]})");
                             List<int> restockAmounts = Core.MerchantStockMap[merchantConfig][4];
@@ -80,13 +80,13 @@ internal class MerchantService
                             }
 
                             // Update the next restock time
-                            NextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(MerchantRestockTimes[merchantConfig]);
+                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(_merchantRestockTimes[merchantConfig]);
                         }
                     }
                 }
             }
 
-            yield return Delay;
+            yield return _delay;
         }
     }
     static void UpdateMerchantInventory(Entity merchant, int merchantConfig)
@@ -104,7 +104,7 @@ internal class MerchantService
         int length = outputItems.Count;
         if (!outputAmounts.Count.Equals(length) || !inputItems.Count.Equals(length) || !inputAmounts.Count.Equals(length) || !stockAmounts.Count.Equals(length))
         {
-            Core.Log.LogInfo($"Invalid merchant config for {merchantConfig}: {outputItems.Count}, {outputAmounts.Count}, {inputItems.Count}, {inputAmounts.Count}, {stockAmounts.Count}");
+            Core.Log.LogInfo($"Invalid merchant configuration ({merchantConfig}) - {outputItems.Count}, {outputAmounts.Count}, {inputItems.Count}, {inputAmounts.Count}, {stockAmounts.Count}");
             return;
         }
 
@@ -163,7 +163,7 @@ internal class MerchantService
     }
     static JobHandle GetTraders(out NativeArray<Entity> userEntities, Allocator allocator = Allocator.TempJob)
     {
-        userEntities = TraderQuery.ToEntityArray(allocator);
+        userEntities = _traderQuery.ToEntityArray(allocator);
         return default;
     }
 }

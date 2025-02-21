@@ -1,7 +1,6 @@
 ﻿using HarmonyLib;
-using ProjectM.Behaviours;
-using ProjectM.Shared.Systems;
 using ProjectM;
+using ProjectM.Shared.Systems;
 using Stunlock.Core;
 using Unity.Collections;
 using Unity.Entities;
@@ -11,16 +10,15 @@ namespace Penumbra.Patches;
 [HarmonyPatch]
 internal static class SpawnMerchantPatch
 {
-    static DebugEventsSystem DebugEventsSystem => Core.DebugEventsSystem;
+    static readonly PrefabGUID _noctemBEH = new(-1999051184);
+    static readonly PrefabGUID _invulnerableBuff = new(-480024072);
 
-    static readonly PrefabGUID NoctemBEH = new(-1999051184);
-    static readonly PrefabGUID InvulnerableBuff = new(-480024072);
+    static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
+    static readonly PrefabGUID _noctemMinorTrader = new(345283594);
 
-    static readonly PrefabGUID NoctemMajorTrader = new(1631713257);
+    const int TRADER_LEVEL = 100;
 
-    static readonly Random Random = new();
-
-    static readonly Dictionary<ulong, PrefabGUID> PlayerPurchases = [];
+    static readonly Random _random = new();
 
     [HarmonyPatch(typeof(SpawnTransformSystem_OnSpawn), nameof(SpawnTransformSystem_OnSpawn.OnUpdate))]
     [HarmonyPrefix]
@@ -29,12 +27,13 @@ internal static class SpawnMerchantPatch
         if (!Core.hasInitialized) return;
 
         NativeArray<Entity> entities = __instance.__query_565030732_0.ToEntityArray(Allocator.Temp);
+
         try
         {
             foreach (Entity entity in entities)
             {
                 if (!entity.TryGetComponent(out PrefabGUID prefabGUID)) continue;
-                else if (NoctemMajorTrader.Equals(prefabGUID) && entity.TryGetComponent(out UnitLevel unitLevel) && unitLevel.Level._Value == 100)
+                else if ((prefabGUID.Equals(_noctemMinorTrader) || prefabGUID.Equals(_noctemMajorTrader)) && entity.TryGetComponent(out UnitLevel unitLevel) && unitLevel.Level._Value == TRADER_LEVEL)
                 {
                     entity.With((ref UnitStats unitStats) =>
                     {
@@ -45,12 +44,13 @@ internal static class SpawnMerchantPatch
                         unitStats.FireResistance._Value = 10000;
                         unitStats.PvPResilience._Value = 1;
                     });
+
+                    entity.With((ref DynamicCollision dynamicCollision) =>
+                    {
+                        dynamicCollision.Immobile = true;
+                    });
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Core.Log.LogInfo(ex);
         }
         finally
         {

@@ -1,6 +1,4 @@
-using Il2CppInterop.Runtime;
 using ProjectM;
-using ProjectM.Gameplay.Scripting;
 using ProjectM.Network;
 using ProjectM.Shared;
 using Stunlock.Core;
@@ -12,12 +10,11 @@ namespace Penumbra.Commands;
 [CommandGroup("penumbra")]
 internal static class MerchantCommands
 {
-    static readonly PrefabGUID NoctemMajorTrader = new(1631713257);
-
-    const string allowedName = "Abattoir";
+    static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
+    static readonly PrefabGUID _noctemMinorTrader = new(345283594);
 
     [Command(name: "spawnmerchant", shortHand: "spawn", adminOnly: true, usage: ".penumbra spawn", description: "Spawns CHAR_Trader_Noctem_Major PrefabGuid(1631713257) at mouse location.")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx)
+    public static void SpawnMerchantCommand(ChatCommandContext ctx, string trader = "minor")
     {
         EntityCommandBuffer entityCommandBuffer = Core.EntityCommandBufferSystem.CreateCommandBuffer();
         DebugEventsSystem debugEventsSystem = Core.DebugEventsSystem;
@@ -30,9 +27,25 @@ internal static class MerchantCommands
         FromCharacter fromCharacter = new() { Character = character, User = userEntity };
         EntityInput entityInput = character.Read<EntityInput>();
 
+        PrefabGUID merchantPrefabGuid;
+
+        if (trader.Equals("major"))
+        {
+            merchantPrefabGuid = _noctemMajorTrader;
+        }
+        else if (trader.Equals("minor"))
+        {
+            merchantPrefabGuid = _noctemMinorTrader;
+        }
+        else
+        {
+            ctx.Reply("Invalid merchant type! Must be <color=white>'major'</color> or <color=white>'minor'</color> Noctem trader.");
+            return;
+        }
+
         SpawnDebugEvent debugEvent = new()
         {
-            PrefabGuid = NoctemMajorTrader,
+            PrefabGuid = merchantPrefabGuid,
             Control = false,
             Roam = false,
             Team = SpawnDebugEvent.TeamEnum.Neutral,
@@ -46,7 +59,7 @@ internal static class MerchantCommands
         ctx.Reply("Spawned mod merchant at mouse position!");
     }
 
-    [Command(name: "modifystock", shortHand: "stock", adminOnly: true, usage: ".penumbra stock [#]", description: "Applies merchant stock configuration to hovered merchant.")]
+    [Command(name: "changewares", shortHand: "wares", adminOnly: true, usage: ".penumbra wares [#]", description: "Applies merchant wares configuration to valid hovered merchant.")]
     public static void ApplyMerchantCommand(ChatCommandContext ctx, int merchantConfig)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
@@ -55,6 +68,7 @@ internal static class MerchantCommands
         if (merchantConfig < 1 || merchantConfig > 5)
         {
             ctx.Reply($"Merchant wares must be between <color=white>{1}</color> and <color=white>{5}</color>.");
+
             return;
         }
 
@@ -68,7 +82,7 @@ internal static class MerchantCommands
 
         List<int> stockAmounts = merchantConfigs[4];
 
-        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().Equals(NoctemMajorTrader))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMajorTrader))
         {
             var outputBuffer = entityInput.HoveredEntity.ReadBuffer<TradeOutput>();
             var entryBuffer = entityInput.HoveredEntity.ReadBuffer<TraderEntry>();
@@ -110,26 +124,27 @@ internal static class MerchantCommands
         }
         else
         {
-            ctx.Reply($"Hovered entity is not a mod merchant!");
+            ctx.Reply($"Not hovering over a valid merchant!");
         }
     }
 
-    [Command(name: "removemerchant", shortHand: "remove", adminOnly: true, usage: ".penumbra remove", description: "Destroys hovered merchant.")]
+    [Command(name: "merchantremove", shortHand: "remove", adminOnly: true, usage: ".penumbra remove", description: "Removes valid hovered merchant.")]
     public static void RemoveMerchantCommand(ChatCommandContext ctx)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
-        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().LookupName().Contains("CHAR_Trader"))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.GetPrefabGuid().GetPrefabName().Contains("CHAR_Trader"))
         {
             DestroyUtility.Destroy(Core.EntityManager, entityInput.HoveredEntity);
         }
         else
         {
-            ctx.Reply($"Hovered entity is not a mod merchant!");
+            ctx.Reply($"Not hovering over a valid merchant!");
         }
     }
 
+    /*
     [Command(name: "restorelink", shortHand: "link", adminOnly: true, usage: ".penumbra link [PrefabGUID]", description: "Restores link between attachedBuffer entry and abilityGroupSlotBuffer entry if severed.")]
     public static void RestoreLinkCommand(ChatCommandContext ctx, int abilityGroup)
     {
@@ -178,7 +193,7 @@ internal static class MerchantCommands
                                     abilityGroupSlotEntity.Write(abilityGroupSlot);
                                     attachedEntity.Write(abilityGroupState);
 
-                                    ctx.Reply($"Restored link for <color=white>{abilityGroupPrefabGUID.LookupName()}</color>!");
+                                    ctx.Reply($"Restored link for <color=white>{abilityGroupPrefabGUID.GetPrefabName()}</color>!");
                                     return;
                                 }
                             }
@@ -200,4 +215,5 @@ internal static class MerchantCommands
             ctx.Reply($"Couldn't get attachedBuffer or abilityGroupSlotBuffer for character!");
         }
     }
+    */
 }

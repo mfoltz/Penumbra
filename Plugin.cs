@@ -21,11 +21,11 @@ internal class Plugin : BasePlugin
     // config entries
     static ConfigEntry<string> _merchantRestockTimes;
 
-    static ConfigEntry<string> _firstMerchantOutputItems; // item prefabs for output
+    static ConfigEntry<string> _firstMerchantOutputItems;   // item prefabs for output
     static ConfigEntry<string> _firstMerchantOutputAmounts; // item amounts for output
-    static ConfigEntry<string> _firstMerchantInputItems; // item prefabs for input
-    static ConfigEntry<string> _firstMerchantInputAmounts; // item amounts for input
-    static ConfigEntry<string> _firstMerchantStockAmounts; // stock amounts for outputs
+    static ConfigEntry<string> _firstMerchantInputItems;    // item prefabs for input
+    static ConfigEntry<string> _firstMerchantInputAmounts;  // item amounts for input
+    static ConfigEntry<string> _firstMerchantStockAmounts;  // stock amounts for outputs
 
     static ConfigEntry<string> _secondMerchantOutputItems;
     static ConfigEntry<string> _secondMerchantOutputAmounts;
@@ -89,13 +89,14 @@ internal class Plugin : BasePlugin
         _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly());
         InitConfig();
         CommandRegistry.RegisterAll();
+
         Core.Log.LogInfo($"{MyPluginInfo.PLUGIN_NAME}[{MyPluginInfo.PLUGIN_VERSION}] loaded!");
     }
     static void InitConfig()
     {
         CreateDirectory(ConfigFile);
 
-        _merchantRestockTimes = InitConfigEntry("General", "RestockTime", "0,0,0,0,0", "The restock time in minutes for merchants. 1-5, 0 is no restocking.");
+        _merchantRestockTimes = InitConfigEntry("General", "RestockTime", "0,0,0,0,0", "The restock time in minutes for merchants. 0 is no restocking maybe? Idk, guess and check, this isn't released to the public for a reason :P");
         
         _firstMerchantOutputItems = InitConfigEntry("FirstMerchant", "OutputItems", "1247086852,-1619308732,2019195024,-222860772,950358400,220001518,124616797,1954207008,-1930402723,1801132968,1630030026,-915028618,1102277512,1272855317,781586362,2099198078", "The item prefabs for the first merchant's output.");
         _firstMerchantOutputAmounts = InitConfigEntry("FirstMerchant", "OutputAmounts", "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1", "The item amounts for the first merchant's output.");
