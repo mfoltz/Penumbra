@@ -16,7 +16,7 @@ internal class Plugin : BasePlugin
     public static Harmony Harmony => Instance._harmony;
     public static ManualLogSource LogInstance => Instance.Log;
 
-    static readonly string ConfigFile = Path.Combine(Paths.ConfigPath, MyPluginInfo.PLUGIN_NAME); // Merchants folder
+    // static readonly string _configFile = Path.Combine(Paths.ConfigPath, MyPluginInfo.PLUGIN_NAME); // Merchants folder
 
     // config entries
     static ConfigEntry<string> _merchantRestockTimes;
@@ -94,7 +94,7 @@ internal class Plugin : BasePlugin
     }
     static void InitConfig()
     {
-        CreateDirectory(ConfigFile);
+        // CreateDirectory(_configFile);
 
         _merchantRestockTimes = InitConfigEntry("General", "RestockTime", "0,0,0,0,0", "The restock time in minutes for merchants. 0 is no restocking maybe? Idk, guess and check, this isn't released to the public for a reason :P");
         

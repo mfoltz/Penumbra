@@ -149,17 +149,6 @@ internal static class Extensions // probably need to organize this soonTM
     {
         return PrefabCollectionSystem.PrefabGuidToNameDictionary.TryGetValue(prefabGUID, out string prefabName) ? $"{prefabName} {prefabGUID}" : "String.Empty";
     }
-    public static string GetLocalizedName(this PrefabGUID prefabGUID)
-    {
-        string localizedName = GetNameFromGuidString(GetGuidString(prefabGUID));
-
-        if (!string.IsNullOrEmpty(localizedName))
-        {
-            return localizedName;
-        }
-
-        return EMPTY_KEY;
-    }
     public static void Add<T>(this Entity entity)
     {
         EntityManager.AddComponent(entity, new(Il2CppType.Of<T>()));
@@ -338,13 +327,6 @@ internal static class Extensions // probably need to organize this soonTM
             action(item);
         }
     }
-    public static bool TryGetPlayerInfo(this ulong steamId, out PlayerInfo playerInfo)
-    {
-        if (PlayerCache.TryGetValue(steamId, out playerInfo)) return true;
-        else if (OnlineCache.TryGetValue(steamId, out playerInfo)) return true;
-
-        return false;
-    }
     public static PrefabGUID GetPrefabGuid(this Entity entity)
     {
         if (entity.TryGetComponent(out PrefabGUID prefabGUID)) return prefabGUID;
@@ -459,22 +441,6 @@ internal static class Extensions // probably need to organize this soonTM
 
                 return true;
             }
-        }
-
-        return false;
-    }
-    public static bool TryGetMatchPairInfo(this (ulong, ulong) matchPair, out (PlayerInfo, PlayerInfo) matchPairInfo)
-    {
-        matchPairInfo = default;
-
-        ulong playerOne = matchPair.Item1;
-        ulong playerTwo = matchPair.Item2;
-
-        if (playerOne.TryGetPlayerInfo(out PlayerInfo playerOneInfo) && playerTwo.TryGetPlayerInfo(out PlayerInfo playerTwoInfo))
-        {
-            matchPairInfo = (playerOneInfo, playerTwoInfo);
-
-            return true;
         }
 
         return false;

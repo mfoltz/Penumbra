@@ -82,7 +82,7 @@ internal static class MerchantCommands
 
         List<int> stockAmounts = merchantConfigs[4];
 
-        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMajorTrader))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && (entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMajorTrader) || entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMinorTrader)))
         {
             var outputBuffer = entityInput.HoveredEntity.ReadBuffer<TradeOutput>();
             var entryBuffer = entityInput.HoveredEntity.ReadBuffer<TraderEntry>();
@@ -134,7 +134,7 @@ internal static class MerchantCommands
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
-        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && entityInput.HoveredEntity.GetPrefabGuid().GetPrefabName().Contains("CHAR_Trader"))
+        if (entityInput.HoveredEntity.Read<UnitStats>().FireResistance._Value.Equals(10000) && (entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMajorTrader) || entityInput.HoveredEntity.Read<PrefabGUID>().Equals(_noctemMinorTrader)))
         {
             DestroyUtility.Destroy(Core.EntityManager, entityInput.HoveredEntity);
         }
