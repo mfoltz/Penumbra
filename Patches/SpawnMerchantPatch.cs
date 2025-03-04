@@ -11,7 +11,7 @@ namespace Penumbra.Patches;
 internal static class SpawnMerchantPatch
 {
     static readonly PrefabGUID _noctemBEH = new(-1999051184);
-    static readonly PrefabGUID _invulnerableBuff = new(-480024072);
+    static readonly PrefabGUID _buffResistanceUberMob = new(99200653);
 
     static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
     static readonly PrefabGUID _noctemMinorTrader = new(345283594);
@@ -43,6 +43,11 @@ internal static class SpawnMerchantPatch
                         unitStats.PvPProtected._Value = true;
                         unitStats.FireResistance._Value = 10000;
                         unitStats.PvPResilience._Value = 1;
+                    });
+
+                    entity.With((ref BuffResistances buffResistances) =>
+                    {
+                        buffResistances.InitialSettingGuid = _buffResistanceUberMob;
                     });
 
                     entity.With((ref DynamicCollision dynamicCollision) =>

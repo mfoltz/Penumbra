@@ -47,7 +47,7 @@ internal static class MerchantCommands
         {
             PrefabGuid = merchantPrefabGuid,
             Control = false,
-            Roam = false,
+            Roam = true,
             Team = SpawnDebugEvent.TeamEnum.Neutral,
             Level = 100,
             Position = entityInput.AimPosition,
