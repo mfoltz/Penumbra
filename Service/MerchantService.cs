@@ -6,36 +6,48 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using UnityEngine;
+using static Penumbra.Plugin;
 
 namespace Penumbra.Service;
 internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
     
-    static readonly WaitForSeconds _delay = new(150);
+    static readonly WaitForSeconds _delay = new(300f);
 
     static readonly Dictionary<Entity, DateTime> _nextRestockTimes = [];
-    static readonly Dictionary<int, int> _merchantRestockTimes = Core.ParseConfigString(Plugin.MerchantRestockTimes)
-        .Select((value, index) => new { Key = index + 1, Value = value })
-        .ToDictionary(pair => pair.Key, pair => pair.Value);
 
-    static readonly ComponentType[] _traderComponent =
+    static readonly ComponentType[] _traderComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
     ];
 
     static EntityQuery _traderQuery;
+    public class MerchantWares
+    {
+        public List<PrefabGUID> OutputItems;
+        public List<int> OutputAmounts;
+        public List<PrefabGUID> InputItems;
+        public List<int> InputAmounts;
+        public List<int> StockAmounts;
+        public int RestockTime;
+        public int MerchantIndex;
+    }
+
+    static readonly List<MerchantWares> _merchants = [];
+    public static MerchantWares GetMerchantWares(int index) => _merchants[index];
     public MerchantService()
     {
         _traderQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
         {
-            All = _traderComponent,
+            All = _traderComponents,
             Options = EntityQueryOptions.IncludeDisabled
         });
 
-        Core.StartCoroutine(RestockTrader());
+        PopulateMerchantWares();
+        RestockTraders().Start();
     }
-    static IEnumerator RestockTrader()
+    static IEnumerator RestockTraders()
     {
         while (true)
         {
@@ -47,14 +59,15 @@ internal class MerchantService
                 {
                     Trader trader = entity.Read<Trader>();
 
-                    if (trader.RestockTime >= 1 && trader.RestockTime <= 5) // double-check for mod merchants
+                    if (trader.RestockTime >= 1 && trader.RestockTime <= Merchants.Count) // double-check for mod merchants
                     {
-                        int merchantConfig = (int)trader.RestockTime;
+                        int merchant = (int)trader.RestockTime;
+                        MerchantWares merchantWares = GetMerchantWares(merchant - 1);
 
                         // Initialize the next restock time for the merchant if not already set
                         if (!_nextRestockTimes.ContainsKey(entity))
                         {
-                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(_merchantRestockTimes[merchantConfig]);
+                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(merchantWares.RestockTime);
                             //Core.Log.LogInfo($"Initialized restock time for merchant {entity} to {NextRestockTimes[entity]}!");
                         }
 
@@ -62,12 +75,12 @@ internal class MerchantService
                         if (DateTime.UtcNow >= _nextRestockTimes[entity])
                         {
                             //Core.Log.LogInfo($"Restocking merchant {entity} ({DateTime.UtcNow}|{NextRestockTimes[entity]})");
-                            List<int> restockAmounts = Core.MerchantStockMap[merchantConfig][4];
+                            List<int> restockAmounts = merchantWares.StockAmounts;
                             var entryBuffer = entity.ReadBuffer<TraderEntry>();
 
                             if (entryBuffer.Length != restockAmounts.Count) // Update inventory
                             {
-                                UpdateMerchantInventory(entity, merchantConfig);
+                                UpdateMerchantInventory(entity, merchantWares);
                             }
                             else // Restock inventory
                             {
@@ -80,7 +93,7 @@ internal class MerchantService
                             }
 
                             // Update the next restock time
-                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(_merchantRestockTimes[merchantConfig]);
+                            _nextRestockTimes[entity] = DateTime.UtcNow.AddMinutes(merchantWares.RestockTime);
                         }
                     }
                 }
@@ -89,22 +102,30 @@ internal class MerchantService
             yield return _delay;
         }
     }
-    static void UpdateMerchantInventory(Entity merchant, int merchantConfig)
+    static void PopulateMerchantWares()
     {
-        List<List<int>> merchantConfigs = Core.MerchantStockMap[merchantConfig];
-
-        List<PrefabGUID> outputItems = merchantConfigs[0].Select(x => new PrefabGUID(x)).ToList();
-        List<int> outputAmounts = merchantConfigs[1];
-
-        List<PrefabGUID> inputItems = merchantConfigs[2].Select(x => new PrefabGUID(x)).ToList();
-        List<int> inputAmounts = merchantConfigs[3];
-
-        List<int> stockAmounts = merchantConfigs[4];
-
-        int length = outputItems.Count;
-        if (!outputAmounts.Count.Equals(length) || !inputItems.Count.Equals(length) || !inputAmounts.Count.Equals(length) || !stockAmounts.Count.Equals(length))
+        foreach (MerchantConfig merchantConfig in Merchants)
         {
-            Core.Log.LogInfo($"Invalid merchant configuration ({merchantConfig}) - {outputItems.Count}, {outputAmounts.Count}, {inputItems.Count}, {inputAmounts.Count}, {stockAmounts.Count}");
+            MerchantWares merchantWares = new()
+            {
+                OutputItems = [..merchantConfig.OutputItems.Select(id => new PrefabGUID(int.Parse(id)))],
+                OutputAmounts = [..merchantConfig.OutputAmounts],
+                InputItems = [..merchantConfig.InputItems.Select(id => new PrefabGUID(int.Parse(id)))],
+                InputAmounts = [..merchantConfig.InputAmounts],
+                StockAmounts = [..merchantConfig.StockAmounts],
+                RestockTime = merchantConfig.RestockTime,
+                MerchantIndex = Merchants.IndexOf(merchantConfig)
+            };
+        }
+    }
+    static void UpdateMerchantInventory(Entity merchant, MerchantWares merchantWares)
+    {
+        int length = merchantWares.OutputItems.Count;
+
+        if (!merchantWares.OutputAmounts.Count.Equals(length) || !merchantWares.InputItems.Count.Equals(length) 
+            || !merchantWares.InputAmounts.Count.Equals(length) || !merchantWares.StockAmounts.Count.Equals(length))
+        {
+            Core.Log.LogWarning($"Merchant data length mismatch - ({merchantWares.MerchantIndex + 1})");
             return;
         }
 
@@ -116,18 +137,18 @@ internal class MerchantService
         entryBuffer.Clear();
         inputBuffer.Clear();
 
-        for (int i = 0; i < outputItems.Count; i++)
+        for (int i = 0; i < merchantWares.OutputItems.Count; i++)
         {
             outputBuffer.Add(new TradeOutput
             {
-                Amount = (ushort)outputAmounts[i],
-                Item = outputItems[i]
+                Amount = (ushort)merchantWares.OutputAmounts[i],
+                Item = merchantWares.OutputItems[i]
             });
 
             inputBuffer.Add(new TradeCost
             {
-                Amount = (ushort)inputAmounts[i],
-                Item = inputItems[i]
+                Amount = (ushort)merchantWares.InputAmounts[i],
+                Item = merchantWares.InputItems[i]
             });
 
             entryBuffer.Add(new TraderEntry
@@ -138,7 +159,7 @@ internal class MerchantService
                 FullRechargeTime = 60,
                 OutputCount = 1,
                 OutputStartIndex = (byte)i,
-                StockAmount = (ushort)stockAmounts[i]
+                StockAmount = (ushort)merchantWares.StockAmounts[i]
             });
         }
     }
@@ -146,6 +167,7 @@ internal class MerchantService
     {
         JobHandle handle = GetTraders(out NativeArray<Entity> traderEntities, Allocator.TempJob);
         handle.Complete();
+
         try
         {
             foreach (Entity entity in traderEntities)

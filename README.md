@@ -1,1 +1,2 @@
-WIP
+- WIP
+- thank Trodi for BloodyMerchant/general credits stuff

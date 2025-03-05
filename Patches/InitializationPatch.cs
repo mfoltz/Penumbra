@@ -14,7 +14,7 @@ internal static class InitializationPatch
         {
             Core.Initialize();
 
-            if (Core.hasInitialized)
+            if (Core._hasInitialized)
             {
                 Core.Log.LogInfo($"|{MyPluginInfo.PLUGIN_NAME}[{MyPluginInfo.PLUGIN_VERSION}] initialized!");
                 Plugin.Harmony.Unpatch(typeof(SceneSystem).GetMethod("ShutdownStreamingSupport"), typeof(InitializationPatch).GetMethod("ShutdownStreamingSupportPostfix"));

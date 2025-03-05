@@ -18,13 +18,11 @@ internal static class SpawnMerchantPatch
 
     const int TRADER_LEVEL = 100;
 
-    static readonly Random _random = new();
-
     [HarmonyPatch(typeof(SpawnTransformSystem_OnSpawn), nameof(SpawnTransformSystem_OnSpawn.OnUpdate))]
     [HarmonyPrefix]
     static void OnUpdatePrefix(SpawnTransformSystem_OnSpawn __instance)
     {
-        if (!Core.hasInitialized) return;
+        if (!Core._hasInitialized) return;
 
         NativeArray<Entity> entities = __instance.__query_565030732_0.ToEntityArray(Allocator.Temp);
 
