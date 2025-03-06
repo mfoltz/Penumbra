@@ -13,6 +13,7 @@ internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
     
+    static readonly WaitForSeconds _startDelay = new(60f);
     static readonly WaitForSeconds _delay = new(300f);
 
     static readonly Dictionary<Entity, DateTime> _nextRestockTimes = [];
@@ -49,6 +50,8 @@ internal class MerchantService
     }
     static IEnumerator RestockTraders()
     {
+        yield return _startDelay;
+
         while (true)
         {
             IEnumerable<Entity> traders = GetTradersEnumerable();
@@ -57,10 +60,12 @@ internal class MerchantService
             {
                 if (entity.Has<Trader>() && entity.Read<UnitStats>().FireResistance._Value.Equals(10000)) // check for mod merchants
                 {
+                    Core.Log.LogWarning($"Handling Penumbra merchant in restock loop...");
                     Trader trader = entity.Read<Trader>();
 
                     if (trader.RestockTime >= 1 && trader.RestockTime <= Merchants.Count) // double-check for mod merchants
                     {
+                        Core.Log.LogWarning($"Retrieving wares...");
                         int merchant = (int)trader.RestockTime;
                         MerchantWares merchantWares = GetMerchantWares(merchant - 1);
 
@@ -71,6 +76,7 @@ internal class MerchantService
                             //Core.Log.LogInfo($"Initialized restock time for merchant {entity} to {NextRestockTimes[entity]}!");
                         }
 
+                        Core.Log.LogWarning($"Checking next restock time - ({merchant})");
                         // Check if the current time has passed the next restock time
                         if (DateTime.UtcNow >= _nextRestockTimes[entity])
                         {
@@ -80,10 +86,12 @@ internal class MerchantService
 
                             if (entryBuffer.Length != restockAmounts.Count) // Update inventory
                             {
+                                Core.Log.LogWarning($"Updating merchant inventory...");
                                 UpdateMerchantInventory(entity, merchantWares);
                             }
                             else // Restock inventory
                             {
+                                Core.Log.LogWarning($"Restocking merchant inventory...");
                                 for (int i = 0; i < restockAmounts.Count; i++)
                                 {
                                     var item = entryBuffer[i];

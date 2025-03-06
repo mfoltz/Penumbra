@@ -8,13 +8,13 @@ using static Penumbra.Service.MerchantService;
 
 namespace Penumbra.Commands;
 
-[CommandGroup("penumbra")]
+[CommandGroup(name: "penumbra", "pen")] // can't think if '.p' already used off the top of my head, will revisit
 internal static class MerchantCommands
 {
     static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
     static readonly PrefabGUID _noctemMinorTrader = new(345283594);
 
-    [Command(name: "spawnmerchant", shortHand: "spawn", adminOnly: true, usage: ".penumbra spawn [major/minor]", description: "Spawns CHAR_Trader_Noctem_Major PrefabGuid(1631713257) at mouse location.")]
+    [Command(name: "spawnmerchant", shortHand: "s", adminOnly: true, usage: ".pen s [major/minor]", description: "Spawns Noctem merchant (major or minor) at mouse location.")]
     public static void SpawnMerchantCommand(ChatCommandContext ctx, string trader = "minor")
     {
         EntityCommandBuffer entityCommandBuffer = Core.EntityCommandBufferSystem.CreateCommandBuffer();
@@ -60,7 +60,7 @@ internal static class MerchantCommands
         ctx.Reply($"Spawned Penumbra merchant (<color=white>{merchantPrefabGuid.GetPrefabName()}</color>) at mouse position!");
     }
 
-    [Command(name: "changewares", shortHand: "wares", adminOnly: true, usage: ".penumbra wares [#]", description: "Applies merchant wares configuration to valid hovered merchant.")]
+    [Command(name: "changewares", shortHand: "w", adminOnly: true, usage: ".pen w [#]", description: "Sets wares for hovered Penumbra merchant.")]
     public static void ApplyMerchantCommand(ChatCommandContext ctx, int merchant)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
@@ -120,7 +120,7 @@ internal static class MerchantCommands
         }
     }
 
-    [Command(name: "merchantremove", shortHand: "remove", adminOnly: true, usage: ".penumbra remove", description: "Removes hovered Penumbra merchant.")]
+    [Command(name: "merchantremove", shortHand: "r", adminOnly: true, usage: ".pen r", description: "Removes hovered Penumbra merchant.")]
     public static void RemoveMerchantCommand(ChatCommandContext ctx)
     {
         Entity character = ctx.Event.SenderCharacterEntity;

@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 7.0.x
+      
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0        
+        
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+      - name: Extract Version from .csproj
+        id: extract_version
+        run: |
+          version=$(xmllint --xpath "string(//Project/PropertyGroup/Version)" KinDropTables.csproj)
+          echo "version=$version" >> $GITHUB_ENV   
+          
+      - name: Update thunderstore.toml
+        run: |
+          sed -i "s/versionNumber = \".*\"/versionNumber = \"${{ env.version }}\"/" thunderstore.toml
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          if [ -n "$(git status --porcelain thunderstore.toml)" ]; then
+            git add thunderstore.toml
+            git commit -m "chore: Update thunderstore.toml version to ${{ env.version }}"
+            git push
+          else
+            echo "No changes to commit in thunderstore.toml"
+          fi
+          
+      - name: GH Release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          body: Manual pre-release of ${{ env.version }}
+          name: v${{ env.version }}
+          fail_on_unmatched_files: true
+          prerelease: true
+          tag_name: v${{ env.version }}
+          files: |
+            ./bin/Release/net6.0/KinDropTables.dll
+            CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

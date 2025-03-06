@@ -1,5 +1,4 @@
 using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
@@ -50,9 +49,9 @@ internal class Plugin : BasePlugin
     }
     void LoadMerchants()
     {
-        for (int i = 1; ; i++)
+        for (int i = 0; ; i++)
         {
-            string section = $"Merchant{i}";
+            string section = $"Merchant{i + 1}";
 
             var outputItems = Config.Bind(section, "OutputItems", "", "Comma-separated item prefab IDs for output");
             if (string.IsNullOrEmpty(outputItems.Value)) break;
@@ -221,7 +220,7 @@ internal class Plugin : BasePlugin
 
         for (int i = 0; i < _merchants.Count; i++)
         {
-            string section = $"Merchant{i}";
+            string section = $"Merchant{i + 1}";
             var merchant = _merchants[i];
 
             Config.Bind(section, "OutputItems", string.Join(",", merchant.OutputItems), "Comma-separated item prefab IDs for output.");
