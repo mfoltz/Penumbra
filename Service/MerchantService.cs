@@ -124,6 +124,8 @@ internal class MerchantService
                 RestockTime = merchantConfig.RestockTime,
                 MerchantIndex = Merchants.IndexOf(merchantConfig)
             };
+
+            _merchants.Add(merchantWares);
         }
     }
     static void UpdateMerchantInventory(Entity merchant, MerchantWares merchantWares)
