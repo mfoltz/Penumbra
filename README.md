@@ -23,9 +23,9 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - WIP
 
 ## Commands
-- `.penumbra spawnmerchant [major/minor]` 🔒
+- `.penumbra spawnmerchant [major/minor] [Roam]` 🔒
   - Spawns Noctem merchant (major or minor) at mouse location.
-  - Shortcut: *.pen s [major/minor]*
+  - Shortcut: *.pen s [major/minor] [Roam]*
 - `.penumbra changewares [#]` 🔒
   - Sets wares for hovered Penumbra merchant.
   - Shortcut: *.pen w [#]*

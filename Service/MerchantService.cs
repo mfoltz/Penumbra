@@ -1,5 +1,6 @@
 using Il2CppInterop.Runtime;
 using ProjectM;
+using ProjectM.Network;
 using Stunlock.Core;
 using System.Collections;
 using Unity.Collections;
@@ -12,15 +13,21 @@ namespace Penumbra.Service;
 internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
-    
+    static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
+
     static readonly WaitForSeconds _startDelay = new(60f);
     static readonly WaitForSeconds _delay = new(300f);
+
+    static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
+    static readonly PrefabGUID _noctemMinorTrader = new(345283594);
+    static readonly PrefabGUID _defaultEmoteBuff = new(-988102043);
 
     static readonly Dictionary<Entity, DateTime> _nextRestockTimes = [];
 
     static readonly ComponentType[] _traderComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
+        // ComponentType.ReadOnly(Il2CppType.Of<Immortal>()), #soon, change spawn to instantiate, do the direction buff, also in-game restock timer if possible but has weird entity going on and looks like a pain
     ];
 
     static EntityQuery _traderQuery;
@@ -60,12 +67,12 @@ internal class MerchantService
             {
                 if (entity.Has<Trader>() && entity.Read<UnitStats>().FireResistance._Value.Equals(10000)) // check for mod merchants
                 {
-                    Core.Log.LogWarning($"Handling Penumbra merchant in restock loop...");
+                    // Core.Log.LogWarning($"Handling Penumbra merchant in restock loop...");
                     Trader trader = entity.Read<Trader>();
 
                     if (trader.RestockTime >= 1 && trader.RestockTime <= Merchants.Count) // double-check for mod merchants
                     {
-                        Core.Log.LogWarning($"Retrieving wares...");
+                        // Core.Log.LogWarning($"Retrieving wares...");
                         int merchant = (int)trader.RestockTime;
                         MerchantWares merchantWares = GetMerchantWares(merchant - 1);
 
@@ -76,7 +83,7 @@ internal class MerchantService
                             //Core.Log.LogInfo($"Initialized restock time for merchant {entity} to {NextRestockTimes[entity]}!");
                         }
 
-                        Core.Log.LogWarning($"Checking next restock time - ({merchant})");
+                        // Core.Log.LogWarning($"Checking next restock time - ({merchant})");
                         // Check if the current time has passed the next restock time
                         if (DateTime.UtcNow >= _nextRestockTimes[entity])
                         {
@@ -86,12 +93,12 @@ internal class MerchantService
 
                             if (entryBuffer.Length != restockAmounts.Count) // Update inventory
                             {
-                                Core.Log.LogWarning($"Updating merchant inventory...");
+                                // Core.Log.LogWarning($"Updating merchant inventory...");
                                 UpdateMerchantInventory(entity, merchantWares);
                             }
                             else // Restock inventory
                             {
-                                Core.Log.LogWarning($"Restocking merchant inventory...");
+                                // Core.Log.LogWarning($"Restocking merchant inventory...");
                                 for (int i = 0; i < restockAmounts.Count; i++)
                                 {
                                     var item = entryBuffer[i];
@@ -127,6 +134,15 @@ internal class MerchantService
 
             _merchants.Add(merchantWares);
         }
+    }
+    static void ModifyDefaultEmoteBuff(Entity buffEntity, Entity merchant)
+    {
+        buffEntity.With((ref ModifyRotation modifyRotation) =>
+        {
+            modifyRotation.TargetDirectionType = TargetDirectionType.AimDirection;
+            modifyRotation.SnapToDirection = true;
+            modifyRotation.Type = RotationModificationType.Set;
+        });
     }
     static void UpdateMerchantInventory(Entity merchant, MerchantWares merchantWares)
     {
@@ -171,6 +187,26 @@ internal class MerchantService
                 OutputStartIndex = (byte)i,
                 StockAmount = (ushort)merchantWares.StockAmounts[i]
             });
+        }
+    }
+    static IEnumerable<Entity> GetPenumbraTraders()
+    {
+        JobHandle handle = GetTraders(out NativeArray<Entity> traderEntities, Allocator.TempJob);
+        handle.Complete();
+        
+        try
+        {
+            foreach (Entity entity in traderEntities)
+            {
+                if (EntityManager.Exists(entity))
+                {
+                    yield return entity;
+                }
+            }
+        }
+        finally
+        {
+            traderEntities.Dispose();
         }
     }
     static IEnumerable<Entity> GetTradersEnumerable()

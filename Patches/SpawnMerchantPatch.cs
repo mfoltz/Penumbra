@@ -15,6 +15,7 @@ internal static class SpawnMerchantPatch
 
     static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
     static readonly PrefabGUID _noctemMinorTrader = new(345283594);
+    static readonly PrefabGUID _defaultEmoteBuff = new(-988102043);
 
     const int TRADER_LEVEL = 100;
 

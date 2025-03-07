@@ -14,8 +14,8 @@ internal static class MerchantCommands
     static readonly PrefabGUID _noctemMajorTrader = new(1631713257);
     static readonly PrefabGUID _noctemMinorTrader = new(345283594);
 
-    [Command(name: "spawnmerchant", shortHand: "s", adminOnly: true, usage: ".pen s [major/minor]", description: "Spawns Noctem merchant (major or minor) at mouse location.")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx, string trader = "minor")
+    [Command(name: "spawnmerchant", shortHand: "s", adminOnly: true, usage: ".pen s [major/minor] [Roam]", description: "Spawns Noctem merchant (major or minor) at mouse location.")]
+    public static void SpawnMerchantCommand(ChatCommandContext ctx, string trader = "minor", bool roam = false)
     {
         EntityCommandBuffer entityCommandBuffer = Core.EntityCommandBufferSystem.CreateCommandBuffer();
         DebugEventsSystem debugEventsSystem = Core.DebugEventsSystem;
@@ -48,7 +48,7 @@ internal static class MerchantCommands
         {
             PrefabGuid = merchantPrefabGuid,
             Control = false,
-            Roam = true,
+            Roam = roam,
             Team = SpawnDebugEvent.TeamEnum.Neutral,
             Level = 100,
             Position = entityInput.AimPosition,
@@ -57,7 +57,7 @@ internal static class MerchantCommands
 
         debugEventsSystem.SpawnDebugEvent(index, ref debugEvent, entityCommandBuffer, ref fromCharacter);
 
-        ctx.Reply($"Spawned Penumbra merchant (<color=white>{merchantPrefabGuid.GetPrefabName()}</color>) at mouse position!");
+        ctx.Reply($"Spawned Penumbra merchant (<color=white>Noctem {trader}</color>) at mouse position!");
     }
 
     [Command(name: "changewares", shortHand: "w", adminOnly: true, usage: ".pen w [#]", description: "Sets wares for hovered Penumbra merchant.")]
@@ -112,7 +112,7 @@ internal static class MerchantCommands
 
             entityInput.HoveredEntity.Write(new Trader { RestockTime = merchant, NextRestockTime = 0, PrevRestockTime = 0 });
 
-            ctx.Reply($"Wares (<color=white>{merchant}</color>) updated!");
+            ctx.Reply($"Wares updated! (<color=white>{merchant}</color>)");
         }
         else
         {
