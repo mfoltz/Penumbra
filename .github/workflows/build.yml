@@ -31,7 +31,7 @@ jobs:
       - name: Extract Version from .csproj
         id: extract_version
         run: |
-          version=$(xmllint --xpath "string(//Project/PropertyGroup/Version)" KinDropTables.csproj)
+          version=$(xmllint --xpath "string(//Project/PropertyGroup/Version)" Penumbra.csproj)
           echo "version=$version" >> $GITHUB_ENV   
           
       - name: Update thunderstore.toml
@@ -59,7 +59,7 @@ jobs:
           prerelease: true
           tag_name: v${{ env.version }}
           files: |
-            ./bin/Release/net6.0/KinDropTables.dll
+            ./bin/Release/net6.0/Penumbra.dll
             CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
