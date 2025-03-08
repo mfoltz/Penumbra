@@ -30,6 +30,8 @@ internal class MerchantService
         // ComponentType.ReadOnly(Il2CppType.Of<Immortal>()), #soon, change spawn to instantiate, do the direction buff, also in-game restock timer if possible but has weird entity going on and looks like a pain
     ];
 
+    // for restocking system - ProjectM.TraderSpawnData, ProjectM.UnitCompositionActiveUnit [Buffer] [ReadOnly],
+    // ProjectM.TraderEntry [Buffer], ProjectM.TradeCost [Buffer], ProjectM.TradeOutput [Buffer]
     static EntityQuery _traderQuery;
     public class MerchantWares
     {

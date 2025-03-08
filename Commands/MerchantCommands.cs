@@ -120,7 +120,7 @@ internal static class MerchantCommands
         }
     }
 
-    [Command(name: "merchantremove", shortHand: "r", adminOnly: true, usage: ".pen r", description: "Removes hovered Penumbra merchant.")]
+    [Command(name: "removemerchant", shortHand: "r", adminOnly: true, usage: ".pen r", description: "Removes hovered Penumbra merchant.")]
     public static void RemoveMerchantCommand(ChatCommandContext ctx)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
