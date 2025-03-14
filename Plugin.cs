@@ -62,7 +62,8 @@ internal class Plugin : BasePlugin
                 OutputAmounts = ParseIntArray(Config.Bind(section, "OutputAmounts", "", "Amounts for each output item").Value),
                 InputItems = Config.Bind(section, "InputItems", "", "Comma-separated item prefab IDs for input").Value.Split(','),
                 InputAmounts = ParseIntArray(Config.Bind(section, "InputAmounts", "", "Amounts for each input item").Value),
-                StockAmounts = ParseIntArray(Config.Bind(section, "StockAmounts", "", "Stock amounts for each output item").Value)
+                StockAmounts = ParseIntArray(Config.Bind(section, "StockAmounts", "", "Stock amounts for each output item").Value),
+                RestockTime = Config.Bind(section, "RestockTime", 0, "Restock time in minutes").Value
             };
 
             _merchants.Add(merchant);

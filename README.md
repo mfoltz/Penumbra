@@ -41,9 +41,12 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra changewares [#]` 🔒
   - Sets wares for hovered Penumbra merchant.
   - Shortcut: *.pen w [#]*
-- `.penumbra merchantremove` 🔒
+- `.penumbra removemerchant` 🔒
   - Removes hovered Penumbra merchant.
   - Shortcut: *.pen r*
+- `.penumbra test [Value]` 🔒
+  - Testing.
+  - Shortcut: *.pen t [Value]*
 
 ## Credits
 

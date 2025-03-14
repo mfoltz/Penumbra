@@ -53,6 +53,11 @@ internal static class SpawnMerchantPatch
                     {
                         dynamicCollision.Immobile = true;
                     });
+
+                    entity.AddWith((ref Immortal immortal) =>
+                    {
+                        immortal.IsImmortal = true;
+                    });
                 }
             }
         }

@@ -197,9 +197,9 @@ internal static class Extensions // probably need to organize this soonTM
 
         return false;
     }
-    public static bool IsDifferentPlayer(this Entity entity, Entity target)
+    public static bool IsTrader(this Entity entity)
     {
-        if (entity.IsPlayer() && target.IsPlayer() && !entity.Equals(target))
+        if (entity.Has<Trader>())
         {
             return true;
         }
@@ -241,7 +241,7 @@ internal static class Extensions // probably need to organize this soonTM
     }
     public static Entity GetPrefabEntity(this Entity entity)
     {
-        return ServerGameManager.GetPrefabEntity(entity.Read<PrefabGUID>());
+        return ServerGameManager.GetPrefabEntity(entity.GetPrefabGuid());
     }
     public static Entity GetSpellTarget(this Entity entity)
     {

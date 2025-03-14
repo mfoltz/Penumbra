@@ -1,11 +1,14 @@
 using Il2CppInterop.Runtime;
 using ProjectM;
 using ProjectM.Network;
+using ProjectM.Scripting;
 using Stunlock.Core;
 using System.Collections;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 using static Penumbra.Plugin;
 
@@ -13,8 +16,10 @@ namespace Penumbra.Service;
 internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
+    static ServerGameManager ServerGameManager => Core.ServerGameManager;
     static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
 
+    static readonly WaitForSeconds _spawnDelay = new(0.25f);
     static readonly WaitForSeconds _startDelay = new(60f);
     static readonly WaitForSeconds _delay = new(300f);
 
@@ -23,15 +28,14 @@ internal class MerchantService
     static readonly PrefabGUID _defaultEmoteBuff = new(-988102043);
 
     static readonly Dictionary<Entity, DateTime> _nextRestockTimes = [];
+    static readonly List<Entity> _penumbraTraders = [];
 
     static readonly ComponentType[] _traderComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
-        // ComponentType.ReadOnly(Il2CppType.Of<Immortal>()), #soon, change spawn to instantiate, do the direction buff, also in-game restock timer if possible but has weird entity going on and looks like a pain
+        ComponentType.ReadOnly(Il2CppType.Of<Immortal>()),
     ];
 
-    // for restocking system - ProjectM.TraderSpawnData, ProjectM.UnitCompositionActiveUnit [Buffer] [ReadOnly],
-    // ProjectM.TraderEntry [Buffer], ProjectM.TradeCost [Buffer], ProjectM.TradeOutput [Buffer]
     static EntityQuery _traderQuery;
     public class MerchantWares
     {
@@ -70,12 +74,15 @@ internal class MerchantService
                 if (entity.Has<Trader>() && entity.Read<UnitStats>().FireResistance._Value.Equals(10000)) // check for mod merchants
                 {
                     // Core.Log.LogWarning($"Handling Penumbra merchant in restock loop...");
-                    Trader trader = entity.Read<Trader>();
+                    // Trader trader = entity.Read<Trader>();
+                    float holyResistance = entity.Read<UnitStats>().HolyResistance._Value;
 
-                    if (trader.RestockTime >= 1 && trader.RestockTime <= Merchants.Count) // double-check for mod merchants
+                    if (holyResistance >= 1 && holyResistance <= Merchants.Count) // double-check for mod merchants
                     {
                         // Core.Log.LogWarning($"Retrieving wares...");
-                        int merchant = (int)trader.RestockTime;
+                        // int merchant = (int)trader.RestockTime;
+
+                        int merchant = (int)holyResistance;
                         MerchantWares merchantWares = GetMerchantWares(merchant - 1);
 
                         // Initialize the next restock time for the merchant if not already set
@@ -137,7 +144,18 @@ internal class MerchantService
             _merchants.Add(merchantWares);
         }
     }
-    static void ModifyDefaultEmoteBuff(Entity buffEntity, Entity merchant)
+    public static void SpawnTrader(PrefabGUID traderPrefabGuid, float3 aimPosition, float direction, MerchantWares wares)
+    {
+        Entity trader = ServerGameManager.InstantiateEntityImmediate(Entity.Null, traderPrefabGuid);
+        ModifyTrader(trader, aimPosition, direction).Start();
+    }
+    static IEnumerator ModifyTrader(Entity trader, float3 aimPosition, float direction)
+    {
+        yield return _spawnDelay;
+        
+        if (!)
+    }
+    public static void ModifyDefaultEmoteBuff(Entity buffEntity, Entity merchant)
     {
         buffEntity.With((ref ModifyRotation modifyRotation) =>
         {
@@ -193,7 +211,7 @@ internal class MerchantService
     }
     static IEnumerable<Entity> GetPenumbraTraders()
     {
-        JobHandle handle = GetTraders(out NativeArray<Entity> traderEntities, Allocator.TempJob);
+        JobHandle handle = GetTraders(out NativeArray<Entity> traderEntities, Allocator.Temp);
         handle.Complete();
         
         try
