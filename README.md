@@ -20,7 +20,7 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 
 ## Configuration
 
-### Merchant1
+### Merchant(#)
 - **Output Items**: (string, default: "-1370210913,1915695899,862477668,429052660,28358550")
   Item prefabGUIDs for outputs.
 - **Output Amounts**: (string, default: "1,1,1500,15,250")
@@ -35,18 +35,15 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
   Time between restocks in minutes (5 minimum or can use 0 for no restocking).
 
 ## Commands
-- `.penumbra spawnmerchant [major/minor] [Roam]` 🔒
-  - Spawns Noctem merchant (major or minor) at mouse location.
-  - Shortcut: *.pen s [major/minor] [Roam]*
-- `.penumbra changewares [#]` 🔒
-  - Sets wares for hovered Penumbra merchant.
-  - Shortcut: *.pen w [#]*
+- `.penumbra spawnmerchant [TraderPrefabGuid] [Wares] [Roam]` 🔒
+  - Spawns merchant at mouse location with configured wares.
+  - Shortcut: *.pen sm [TraderPrefabGuid] [Wares] [Roam]*
+- `.penumbra patrolmerchant` 🔒
+  - Patrol merchant testing.
+  - Shortcut: *.pen pm*
 - `.penumbra removemerchant` 🔒
-  - Removes hovered Penumbra merchant.
-  - Shortcut: *.pen r*
-- `.penumbra test [Value]` 🔒
-  - Testing.
-  - Shortcut: *.pen t [Value]*
+  - Removes hovered merchant.
+  - Shortcut: *.pen rm*
 
 ## Credits
 

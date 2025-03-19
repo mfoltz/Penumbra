@@ -22,6 +22,7 @@ internal class Plugin : BasePlugin
         public int[] InputAmounts;
         public int[] StockAmounts;
         public int RestockTime;
+        public bool Roam;
     }
 
     static readonly List<MerchantConfig> _merchants = [];
@@ -63,7 +64,8 @@ internal class Plugin : BasePlugin
                 InputItems = Config.Bind(section, "InputItems", "", "Comma-separated item prefab IDs for input").Value.Split(','),
                 InputAmounts = ParseIntArray(Config.Bind(section, "InputAmounts", "", "Amounts for each input item").Value),
                 StockAmounts = ParseIntArray(Config.Bind(section, "StockAmounts", "", "Stock amounts for each output item").Value),
-                RestockTime = Config.Bind(section, "RestockTime", 0, "Restock time in minutes").Value
+                RestockTime = Config.Bind(section, "RestockTime", 0, "Restock time in minutes").Value,
+                Roam = Config.Bind(section, "Roam", false, "Pace around or stay put.").Value
             };
 
             _merchants.Add(merchant);
@@ -112,7 +114,8 @@ internal class Plugin : BasePlugin
             5,5,5,5,
             5,5,5,5
             ],
-            RestockTime = 15
+            RestockTime = 15,
+            Roam = false
         });
 
         _merchants.Add(new MerchantConfig
@@ -140,7 +143,8 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99,99,99,99,99,99
             ],
-            RestockTime = 15
+            RestockTime = 15,
+            Roam = false
         });
 
         _merchants.Add(new MerchantConfig
@@ -160,7 +164,8 @@ internal class Plugin : BasePlugin
             300,300,300,500,500,500,500,500,500,500
             ],
             StockAmounts = [..Enumerable.Repeat(99, 20)],
-            RestockTime = 15
+            RestockTime = 15,
+            Roam = false
         });
 
         _merchants.Add(new MerchantConfig
@@ -185,7 +190,8 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99
             ],
-            RestockTime = 15
+            RestockTime = 15,
+            Roam = false
         });
 
         _merchants.Add(new MerchantConfig
@@ -210,7 +216,8 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99,99
             ],
-            RestockTime = 15
+            RestockTime = 15,
+            Roam = false
         });
 
         LogInstance.LogWarning("Created default merchants!");
@@ -230,9 +237,10 @@ internal class Plugin : BasePlugin
             Config.Bind(section, "InputAmounts", string.Join(",", merchant.InputAmounts), "Amounts for each input item.");
             Config.Bind(section, "StockAmounts", string.Join(",", merchant.StockAmounts), "Stock amounts for each output item.");
             Config.Bind(section, "RestockTime", merchant.RestockTime, "Restock time in minutes.");
+            Config.Bind(section, "Roam", merchant.Roam, "Pace around or stay put.");
         }
 
-        LogInstance.LogWarning($"Saved {_merchants.Count} merchants!");
+        // LogInstance.LogWarning($"Saved {_merchants.Count} merchants!");
     }
     public override bool Unload()
     {

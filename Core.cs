@@ -1,11 +1,9 @@
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
+using Il2CppInterop.Runtime;
 using Penumbra.Service;
 using ProjectM;
-using ProjectM.Behaviours;
-using ProjectM.CastleBuilding;
 using ProjectM.Network;
-using ProjectM.Pathfinding;
 using ProjectM.Physics;
 using ProjectM.Scripting;
 using System.Collections;
@@ -59,6 +57,20 @@ internal static class Core
         }
 
         _monoBehaviour.StartCoroutine(routine.WrapToIl2Cpp());
+    }
+    public static void LogEntity(World world, Entity entity)
+    {
+        Il2CppSystem.Text.StringBuilder sb = new();
+
+        try
+        {
+            EntityDebuggingUtility.DumpEntity(world, entity, true, sb);
+            Log.LogInfo($"Entity Dump:\n{sb.ToString()}");
+        }
+        catch (Exception e)
+        {
+            Log.LogWarning($"Error dumping entity: {e.Message}");
+        }
     }
 }
 
