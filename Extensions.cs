@@ -298,15 +298,6 @@ internal static class Extensions // probably need to organize this soonTM
 
         return false;
     }
-    public static int GetMerchantIndex(this Entity entity)
-    {
-        if (entity.TryGetComponent(out Energy energy))
-        {
-            return (int)energy.RegainEnergyChance._Value;
-        }
-
-        return 0;
-    }
     public static float3 GetAimPosition(this Entity entity)
     {
         if (entity.TryGetComponent(out EntityInput entityInput))

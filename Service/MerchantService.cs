@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
 using UnityEngine;
 using static Penumbra.Plugin;
 
@@ -26,7 +25,7 @@ internal class MerchantService
     static readonly WaitForSeconds _delay = new(TIME_CONSTANT);
 
     static readonly PrefabGUID _infiniteInvulnerabilityBuff = new(454502690);
-    static readonly PrefabGUID _buffResistanceUberMob = Prefabs.BuffResistance_UberMobNoKnockback;
+    static readonly PrefabGUID _buffResistanceUberMob = Prefabs.BuffResistance_UberMob_IgniteResistant;
 
     static readonly ComponentType[] _merchantComponents =
     [
@@ -97,6 +96,7 @@ internal class MerchantService
         while (true)
         {
             DateTime now = DateTime.UtcNow;
+            DateTime minValue = DateTime.MinValue;
 
             foreach (var merchantWaresPair in ActiveMerchants)
             {
@@ -105,15 +105,13 @@ internal class MerchantService
                     Entity merchant = merchantWaresPair.Key;
                     MerchantWares merchantWares = merchantWaresPair.Value;
 
-                    if (merchantWares.NextRestockTime.Equals(DateTime.MinValue))
+                    if (merchantWares.NextRestockTime.Equals(minValue))
                     {
-                        UpdateMerchantStock(merchant, merchantWares);
-                        merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
+                        UpdateMerchantStock(merchant, merchantWares, now);
                     }
                     else if (now >= merchantWares.NextRestockTime)
                     {
-                        UpdateMerchantStock(merchant, merchantWares);
-                        merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
+                        UpdateMerchantStock(merchant, merchantWares, now);
                     }
                 }
                 catch (Exception ex)
@@ -147,38 +145,10 @@ internal class MerchantService
     }
     public static void SpawnMerchant(PrefabGUID traderPrefabGuid, float3 aimPosition, MerchantWares wares, bool roam)
     {
-        Entity trader = ServerGameManager.InstantiateEntityImmediate(Entity.Null, traderPrefabGuid);
+        Entity merchant = ServerGameManager.InstantiateEntityImmediate(Entity.Null, traderPrefabGuid);
 
-        /*
-        if (trader.Exists())
-        {
-            trader.AddWith((ref EntityOwner entityOwner) =>
-            {
-                entityOwner.Owner = trader;
-            });
-
-            trader.With((ref BuffResistances buffResistances) =>
-            {
-                buffResistances.InitialSettingGuid = _buffResistanceUberMob;
-            });
-            
-            if (!roam && trader.TryApplyAndGetBuff(_infiniteInvulnerabilityBuff, out Entity buffEntity))
-            {
-                buffEntity.AddWith((ref ModifyMovementSpeedBuff modifyMovementSpeed) =>
-                {
-                    modifyMovementSpeed.MoveSpeed = 0;
-                    modifyMovementSpeed.MultiplyAdd = false;
-                });
-            }
-            else
-            {
-                trader.TryApplyBuff(_infiniteInvulnerabilityBuff);
-            }
-        }
-        */
-
-        ApplyOrRefreshModifications(trader, roam);
-        ModifyMerchant(trader, aimPosition, wares).Start();
+        ApplyOrRefreshModifications(merchant, roam);
+        ModifyMerchant(merchant, aimPosition, wares).Start();
     }
     static void ApplyOrRefreshModifications(Entity merchant, bool roam)
     {
@@ -187,6 +157,11 @@ internal class MerchantService
             merchant.AddWith((ref EntityOwner entityOwner) =>
             {
                 entityOwner.Owner = merchant;
+            });
+
+            merchant.AddWith((ref Buffable buffable) =>
+            {
+                buffable.KnockbackResistanceIndex._Value = 11;
             });
 
             merchant.AddWith((ref BuffResistances buffResistances) =>
@@ -244,13 +219,13 @@ internal class MerchantService
         }
     }
     */
-    static IEnumerator ModifyMerchant(Entity trader, float3 aimPosition, MerchantWares wares)
+    static IEnumerator ModifyMerchant(Entity merchant, float3 aimPosition, MerchantWares wares)
     {
         yield return _spawnDelay;
 
-        trader.SetPosition(aimPosition);
+        merchant.SetPosition(aimPosition);
         
-        trader.With((ref UnitStats unitStats) =>
+        merchant.With((ref UnitStats unitStats) =>
         {
             unitStats.DamageReduction._Value = 100f;
             unitStats.PhysicalResistance._Value = 100f;
@@ -260,17 +235,17 @@ internal class MerchantService
             unitStats.HealthRecovery._Value = 1f;
         });
 
-        trader.AddWith((ref Immortal immortal) =>
+        merchant.AddWith((ref Immortal immortal) =>
         {
             immortal.IsImmortal = true;
         });
 
-        trader.With((ref DynamicCollision dynamicCollision) =>
+        merchant.With((ref DynamicCollision dynamicCollision) =>
         {
             dynamicCollision.Immobile = true;
         });
 
-        trader.AddWith((ref Energy energy) =>
+        merchant.AddWith((ref Energy energy) =>
         {
             energy.MaxEnergy._Value = wares.MerchantIndex;
             energy.GainPerSecond._Value = wares.MerchantIndex;
@@ -278,8 +253,8 @@ internal class MerchantService
             energy.Value = wares.MerchantIndex;
         });
 
-        UpdateMerchantStock(trader, wares);
-        _activeMerchants.TryAdd(trader, wares);
+        _activeMerchants.TryAdd(merchant, wares);
+        UpdateMerchantStock(merchant, wares, DateTime.UtcNow);
     }
 
     /*
@@ -315,7 +290,7 @@ internal class MerchantService
         }
     }
     */
-    static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares)
+    static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares, DateTime now)
     {
         float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
 
@@ -359,25 +334,32 @@ internal class MerchantService
             trader.PrevRestockTime = Core.ServerTime;
             trader.NextRestockTime = Core.ServerTime + (double)restockTime;
         });
+
+        merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
     }
     static void GetActiveMerchants()
     {
         NativeArray<ArchetypeChunk> archetypeChunks = _merchantQuery.CreateArchetypeChunkArray(Allocator.Temp);
+        EntityStorageInfoLookup entityStorageInfoLookup = EntityStorageInfoLookup;
+
+        DateTime now = DateTime.UtcNow;
         int count = 0;
 
         try
         {
             foreach (ArchetypeChunk archetypeChunk in archetypeChunks)
             {
-                NativeArray<Entity> entities = archetypeChunk.GetNativeArray(EntityTypeHandle);
-                NativeArray<Energy> translations = archetypeChunk.GetNativeArray(EnergyHandle);
+                NativeArray<Entity> entityArray = archetypeChunk.GetNativeArray(EntityTypeHandle);
+                NativeArray<Energy> energyArray = archetypeChunk.GetNativeArray(EnergyHandle);
 
                 for (int i = 0; i < archetypeChunk.Count; i++)
                 {
-                    Entity entity = entities[i];
-                    if (!EntityStorageInfoLookup.Exists(entity)) continue;
+                    Entity entity = entityArray[i];
+                    Energy energy = energyArray[i];
 
-                    int wares = entity.GetMerchantIndex();
+                    if (!entityStorageInfoLookup.Exists(entity)) continue;
+
+                    int wares = GetMerchantIndex(energy);
                     if (wares < 0)
                     {
                         Core.Log.LogWarning($"Merchant entity has invalid wares index ({wares}), using default! (0)");
@@ -387,7 +369,7 @@ internal class MerchantService
                     MerchantWares merchantWares = GetMerchantWares(wares);
 
                     ApplyOrRefreshModifications(entity, merchantWares.Roam);
-                    UpdateMerchantStock(entity, merchantWares);
+                    UpdateMerchantStock(entity, merchantWares, now);
 
                     _activeMerchants.TryAdd(entity, merchantWares);
                     count++;
@@ -397,8 +379,12 @@ internal class MerchantService
         finally
         {
             archetypeChunks.Dispose();
-            Core.Log.LogWarning($"Tracking {count} Penumbra merchants!");
+            Core.Log.LogWarning($"Tracking {count} Penumbra merchants found in world!");
         }
+    }
+    static int GetMerchantIndex(Energy energy)
+    {
+        return (int)energy.RegainEnergyChance._Value;
     }
 
     /*
