@@ -75,7 +75,8 @@ internal class Plugin : BasePlugin
     }
     static int[] ParseIntArray(string value)
     {
-        return [..value.Split([','], StringSplitOptions.RemoveEmptyEntries).Select(v => int.TryParse(v, out var result) ? result : 0)];
+        return [..value.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                   .Select(v => int.TryParse(v, out var result) ? result : 0)];
     }
     static void CreateDefaultMerchants()
     {
