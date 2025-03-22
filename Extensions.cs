@@ -2,7 +2,6 @@ using Il2CppInterop.Runtime;
 using ProjectM;
 using ProjectM.Gameplay.Systems;
 using ProjectM.Network;
-using ProjectM.Pathfinding;
 using ProjectM.Scripting;
 using ProjectM.Shared;
 using Stunlock.Core;
@@ -14,7 +13,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 namespace Penumbra;
-internal static class Extensions // probably need to organize this soonTM
+internal static class Extensions
 {
     static EntityManager EntityManager => Core.EntityManager;
     static ServerGameManager ServerGameManager => Core.ServerGameManager;
@@ -29,7 +28,7 @@ internal static class Extensions // probably need to organize this soonTM
 
         EntityManager.SetComponentData(entity, item);
     }
-    public static void AddWith<T>(this Entity entity, WithRefHandler<T> action) where T : struct // need to make sure this works but don't really want to atm
+    public static void AddWith<T>(this Entity entity, WithRefHandler<T> action) where T : struct
     {
         if (!entity.Has<T>())
         {
@@ -84,10 +83,6 @@ internal static class Extensions // probably need to organize this soonTM
     {
         return EntityManager.GetBuffer<T>(entity);
     }
-    public static DynamicBuffer<T> AddBuffer<T>(this Entity entity) where T : struct
-    {
-        return EntityManager.AddBuffer<T>(entity);
-    }
     public static bool TryGetComponent<T>(this Entity entity, out T componentData) where T : struct
     {
         componentData = default;
@@ -136,28 +131,6 @@ internal static class Extensions // probably need to organize this soonTM
     {
         EntityManager.RemoveComponent(entity, new(Il2CppType.Of<T>()));
     }
-    public static bool TryGetPlayer(this Entity entity, out Entity player)
-    {
-        player = Entity.Null;
-
-        if (entity.Has<PlayerCharacter>())
-        {
-            player = entity;
-
-            return true;
-        }
-
-        return false;
-    }
-    public static bool IsPlayer(this Entity entity)
-    {
-        if (entity.Has<PlayerCharacter>())
-        {
-            return true;
-        }
-
-        return false;
-    }
     public static bool IsTrader(this Entity entity)
     {
         if (entity.Has<Trader>())
@@ -176,31 +149,6 @@ internal static class Extensions // probably need to organize this soonTM
 
         return false;
     }
-    public static bool TryGetAttached(this Entity entity, out Entity attached)
-    {
-        attached = Entity.Null;
-
-        if (entity.TryGetComponent(out Attach attach) && attach.Parent.Exists())
-        {
-            attached = attach.Parent;
-
-            return true;
-        }
-
-        return false;
-    }
-    public static Entity GetBuffTarget(this Entity entity)
-    {
-        return CreateGameplayEventServerUtility.GetBuffTarget(EntityManager, entity);
-    }
-    public static Entity GetPrefabEntity(this Entity entity)
-    {
-        return ServerGameManager.GetPrefabEntity(entity.GetPrefabGuid());
-    }
-    public static Entity GetSpellTarget(this Entity entity)
-    {
-        return CreateGameplayEventServerUtility.GetSpellTarget(EntityManager, entity);
-    }
     public static bool Exists(this Entity entity)
     {
         return entity.HasValue() && EntityManager.Exists(entity);
@@ -208,35 +156,6 @@ internal static class Extensions // probably need to organize this soonTM
     public static bool HasValue(this Entity entity)
     {
         return entity != Entity.Null;
-    }
-    public static bool IsDisabled(this Entity entity)
-    {
-        return entity.Has<Disabled>();
-    }
-    public static bool IsVBlood(this Entity entity)
-    {
-        return entity.Has<VBloodConsumeSource>();
-    }
-    public static bool IsGateBoss(this Entity entity)
-    {
-        return entity.Has<VBloodUnit>() && !entity.Has<VBloodConsumeSource>();
-    }
-    public static bool IsVBloodOrGateBoss(this Entity entity)
-    {
-        return entity.Has<VBloodUnit>();
-    }
-    public static ulong GetSteamId(this Entity entity)
-    {
-        if (entity.TryGetComponent(out PlayerCharacter playerCharacter))
-        {
-            return playerCharacter.UserEntity.Read<User>().PlatformId;
-        }
-        else if (entity.TryGetComponent(out User user))
-        {
-            return user.PlatformId;
-        }
-
-        return 0;
     }
     public static NetworkId GetNetworkId(this Entity entity)
     {
@@ -254,27 +173,9 @@ internal static class Extensions // probably need to organize this soonTM
             action(item);
         }
     }
-    public static PrefabGUID GetPrefabGuid(this Entity entity)
-    {
-        if (entity.TryGetComponent(out PrefabGUID prefabGUID)) return prefabGUID;
-
-        return PrefabGUID.Empty;
-    }
-    public static int GetGuidHash(this Entity entity)
-    {
-        if (entity.TryGetComponent(out PrefabGUID prefabGuid)) return prefabGuid.GuidHash;
-
-        return PrefabGUID.Empty.GuidHash;
-    }
     public static Entity GetUserEntity(this Entity character)
     {
         if (character.TryGetComponent(out PlayerCharacter playerCharacter)) return playerCharacter.UserEntity;
-
-        return Entity.Null;
-    }
-    public static Entity GetOwner(this Entity character)
-    {
-        if (character.TryGetComponent(out EntityOwner entityOwner) && entityOwner.Owner.Exists()) return entityOwner.Owner;
 
         return Entity.Null;
     }
@@ -289,63 +190,12 @@ internal static class Extensions // probably need to organize this soonTM
     {
         return ServerGameManager.HasBuff(entity, buffPrefabGuid.ToIdentifier());
     }
-    public static unsafe bool TryGetBuffer<T>(this Entity entity, out DynamicBuffer<T> dynamicBuffer) where T : struct
-    {
-        if (ServerGameManager.TryGetBuffer(entity, out dynamicBuffer))
-        {
-            return true;
-        }
-
-        return false;
-    }
-    public static float3 GetAimPosition(this Entity entity)
-    {
-        if (entity.TryGetComponent(out EntityInput entityInput))
-        {
-            return entityInput.AimPosition;
-        }
-
-        return float3.zero;
-    }
-    public static float3 GetPosition(this Entity entity)
-    {
-        if (entity.TryGetComponent(out Translation translation))
-        {
-            return translation.Value;
-        }
-
-        return float3.zero;
-    }
-    public static int2 GetTileCoord(this Entity entity)
-    {
-        if (entity.TryGetComponent(out TilePosition tilePosition))
-        {
-            return tilePosition.Tile;
-        }
-
-        return int2.zero;
-    }
-    public static int GetUnitLevel(this Entity entity)
-    {
-        if (entity.TryGetComponent(out UnitLevel unitLevel))
-        {
-            return unitLevel.Level._Value;
-        }
-
-        return 0;
-    }
     public static void Destroy(this Entity entity)
     {
         if (entity.Exists()) DestroyUtility.Destroy(EntityManager, entity);
     }
     public static void SetPosition(this Entity entity, float3 position)
     {
-        // PreCombatPosition (AggroConsumer)
-        // SpawnTransform
-        // LastPathRequest
-        // LocalTransform
-        // LastPosition (Height)
-
         if (entity.Has<AggroConsumer>())
         {
             entity.With((ref AggroConsumer aggroConsumer) =>
@@ -404,26 +254,6 @@ internal static class Extensions // probably need to organize this soonTM
             });
         }
     }
-    public static void EnableAggro(this Entity entity)
-    {
-        if (entity.Has<AggroConsumer>())
-        {
-            entity.With((ref AggroConsumer aggroConsumer) =>
-            {
-                aggroConsumer.Active._Value = true;
-            });
-        }
-    }
-    public static void DisableAggro(this Entity entity)
-    {
-        if (entity.Has<AggroConsumer>())
-        {
-            entity.With((ref AggroConsumer aggroConsumer) =>
-            {
-                aggroConsumer.Active._Value = false;
-            });
-        }
-    }
     public static void EnableAggroable(this Entity entity)
     {
         if (entity.Has<Aggroable>())
@@ -436,61 +266,8 @@ internal static class Extensions // probably need to organize this soonTM
             });
         }
     }
-    public static void DisableAggroable(this Entity entity)
-    {
-        if (entity.Has<Aggroable>())
-        {
-            entity.With((ref Aggroable aggroable) =>
-            {
-                aggroable.Value._Value = false;
-                aggroable.DistanceFactor._Value = 0f;
-                aggroable.AggroFactor._Value = 0f;
-            });
-        }
-    }
-    public static bool IsAllied(this Entity entity, Entity player)
-    {
-        return ServerGameManager.IsAllies(entity, player);
-    }
-    public static bool IsPlayerOwned(this Entity entity)
-    {
-        if (entity.TryGetComponent(out EntityOwner entityOwner))
-        {
-            return entityOwner.Owner.IsPlayer();
-        }
-
-        return false;
-    }
-    public static void CastAbility(this Entity entity, Entity target, PrefabGUID abilityGroup)
-    {
-        bool isPlayer = entity.IsPlayer();
-
-        CastAbilityServerDebugEvent castAbilityServerDebugEvent = new()
-        {
-            AbilityGroup = abilityGroup,
-            Who = target.GetNetworkId()
-        };
-
-        FromCharacter fromCharacter = new()
-        {
-            Character = entity,
-            User = isPlayer ? entity.GetUserEntity() : entity
-        };
-
-        int userIndex = isPlayer ? entity.GetUser().Index : 0;
-        DebugEventsSystem.CastAbilityServerDebugEvent(userIndex, ref castAbilityServerDebugEvent, ref fromCharacter);
-    }
     public static void Start(this IEnumerator routine)
     {
         Core.StartCoroutine(routine);
-    }
-    public static IEnumerator WaitForCompletion(this JobHandle handle)
-    {
-        return WaitForCompletionRoutine(handle);
-    }
-    static IEnumerator WaitForCompletionRoutine(JobHandle handle)
-    {
-        while (!handle.IsCompleted)
-            yield return null;
     }
 }

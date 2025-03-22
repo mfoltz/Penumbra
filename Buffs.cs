@@ -1,5 +1,4 @@
 ﻿using ProjectM;
-using ProjectM.Gameplay.Scripting;
 using ProjectM.Network;
 using ProjectM.Scripting;
 using ProjectM.Shared;

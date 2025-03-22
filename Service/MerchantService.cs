@@ -20,9 +20,11 @@ internal class MerchantService
     static ComponentTypeHandle<Energy> EnergyHandle => EntityManager.GetComponentTypeHandle<Energy>(true);
 
     const float TIME_CONSTANT = 60f;
+    const float SPAWN_DELAY = 0.25f;
+    const float ROUTINE_DELAY = 15f;
 
-    static readonly WaitForSeconds _spawnDelay = new(0.25f);
-    static readonly WaitForSeconds _delay = new(TIME_CONSTANT);
+    static readonly WaitForSeconds _spawnDelay = new(SPAWN_DELAY);
+    static readonly WaitForSeconds _routineDelay = new(ROUTINE_DELAY);
 
     static readonly PrefabGUID _infiniteInvulnerabilityBuff = new(454502690);
     static readonly PrefabGUID _buffResistanceUberMob = Prefabs.BuffResistance_UberMob_IgniteResistant;
@@ -53,7 +55,7 @@ internal class MerchantService
         public List<int> InputAmounts;
         public List<int> StockAmounts;
         public int RestockInterval;
-        public DateTime NextRestockTime;
+        public DateTime NextRestockTime = DateTime.MaxValue;
         public int MerchantIndex;
         public bool Roam;
     }
@@ -109,6 +111,10 @@ internal class MerchantService
                         _activeMerchants.TryRemove(merchant, out _);
                         continue;
                     }
+                    else if (merchantWares.NextRestockTime.Equals(DateTime.MaxValue))
+                    {
+                        SyncNextRestock(merchant, merchantWares);
+                    }
                     else if (now >= merchantWares.NextRestockTime)
                     {
                         UpdateMerchantStock(merchant, merchantWares, now);
@@ -122,7 +128,7 @@ internal class MerchantService
                 yield return null;
             }
 
-            yield return _delay;
+            yield return _routineDelay;
         }
     }
     static void PopulateMerchantWares()
@@ -139,7 +145,6 @@ internal class MerchantService
                 InputAmounts = [..merchantConfig.InputAmounts],
                 StockAmounts = [..merchantConfig.StockAmounts],
                 RestockInterval = merchantConfig.RestockTime,
-                NextRestockTime = now.AddMinutes(merchantConfig.RestockTime),
                 MerchantIndex = Merchants.IndexOf(merchantConfig),
                 Roam = merchantConfig.Roam
             };
@@ -197,32 +202,6 @@ internal class MerchantService
             }
         }
     }
-
-    /*
-    public static void SpawnGlobalPatrol(Entity merchant)
-    {
-        if (_globalPatrol.Exists())
-        {
-            try
-            {
-                Entity globalPatrol = EntityManager.Instantiate(_globalPatrol);
-                ModifyGlobalPatrol(globalPatrol, merchant);
-            }
-            catch (Exception ex)
-            {
-                Core.Log.LogError(ex);
-            }
-            finally
-            {
-                Core.Log.LogWarning("Global patrol entity spawned and linked to merchant!");
-            }
-        }
-        else
-        {
-            Core.Log.LogWarning("Global patrol entity not found!");
-        }
-    }
-    */
     static IEnumerator ModifyMerchant(Entity merchant, float3 aimPosition, MerchantWares wares)
     {
         yield return _spawnDelay;
@@ -262,40 +241,6 @@ internal class MerchantService
         DateTime now = DateTime.UtcNow;
         UpdateMerchantStock(merchant, wares, now);
     }
-
-    /*
-    static void ModifyGlobalPatrol(Entity globalPatrol, Entity merchant)
-    {
-        globalPatrol.TryRemove<UnitCompositionSpawner>();
-        globalPatrol.TryRemove<VBloodUnitSpawnSource>();
-        globalPatrol.TryRemove<UnitCompositionActiveUnit>();
-        globalPatrol.TryRemove<FormationOffsetBuffer>();
-        globalPatrol.TryRemove<UnitCompositionGroupEntry>();
-        globalPatrol.TryRemove<UnitCompositionGroupUnitEntry>();
-
-        globalPatrol.With((ref GlobalPatrolState globalPatrolState) =>
-        {
-            globalPatrolState.Direction = GlobalPatrolDirection.Forward;
-            globalPatrolState.PatrolType = GlobalPatrolType.Roaming;
-        });
-
-        globalPatrol.With((ref Translation translation) =>
-        {
-            translation.Value = merchant.GetPosition();
-        });
-
-        if (globalPatrol.TryGetBuffer<FollowerBuffer>(out var buffer))
-        {
-            merchant.AddWith((ref Follower follower) =>
-            {
-                follower.Followed._Value = globalPatrol;
-            });
-
-            buffer.Clear();
-            buffer.Add(new FollowerBuffer { Entity = NetworkedEntity.ServerEntity(merchant) });
-        }
-    }
-    */
     static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares, DateTime now)
     {
         float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
@@ -341,6 +286,27 @@ internal class MerchantService
             trader.PrevRestockTime = Core.ServerTime;
             trader.NextRestockTime = Core.ServerTime + (double)restockTime;
         });
+    }
+    static void SyncNextRestock(Entity merchant, MerchantWares merchantWares)
+    {
+        Trader trader = merchant.Read<Trader>();
+        double now = Core.ServerTime;
+
+        float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
+        double delta = trader.NextRestockTime - trader.PrevRestockTime;
+
+        if (!trader.RestockTime.Equals(restockTime))
+        {
+            merchant.With((ref Trader trader) =>
+            {
+                trader.RestockTime = restockTime;
+            });
+        }
+
+        if (now > trader.NextRestockTime || delta > restockTime)
+        {
+            UpdateMerchantStock(merchant, merchantWares, DateTime.UtcNow);
+        }
     }
     static void GetActiveMerchants()
     {
@@ -388,6 +354,66 @@ internal class MerchantService
     {
         return (int)energy.RegainEnergyChance._Value;
     }
+
+    /*
+    public static void SpawnGlobalPatrol(Entity merchant)
+    {
+        if (_globalPatrol.Exists())
+        {
+            try
+            {
+                Entity globalPatrol = EntityManager.Instantiate(_globalPatrol);
+                ModifyGlobalPatrol(globalPatrol, merchant);
+            }
+            catch (Exception ex)
+            {
+                Core.Log.LogError(ex);
+            }
+            finally
+            {
+                Core.Log.LogWarning("Global patrol entity spawned and linked to merchant!");
+            }
+        }
+        else
+        {
+            Core.Log.LogWarning("Global patrol entity not found!");
+        }
+    }
+    */
+
+    /*
+    static void ModifyGlobalPatrol(Entity globalPatrol, Entity merchant)
+    {
+        globalPatrol.TryRemove<UnitCompositionSpawner>();
+        globalPatrol.TryRemove<VBloodUnitSpawnSource>();
+        globalPatrol.TryRemove<UnitCompositionActiveUnit>();
+        globalPatrol.TryRemove<FormationOffsetBuffer>();
+        globalPatrol.TryRemove<UnitCompositionGroupEntry>();
+        globalPatrol.TryRemove<UnitCompositionGroupUnitEntry>();
+
+        globalPatrol.With((ref GlobalPatrolState globalPatrolState) =>
+        {
+            globalPatrolState.Direction = GlobalPatrolDirection.Forward;
+            globalPatrolState.PatrolType = GlobalPatrolType.Roaming;
+        });
+
+        globalPatrol.With((ref Translation translation) =>
+        {
+            translation.Value = merchant.GetPosition();
+        });
+
+        if (globalPatrol.TryGetBuffer<FollowerBuffer>(out var buffer))
+        {
+            merchant.AddWith((ref Follower follower) =>
+            {
+                follower.Followed._Value = globalPatrol;
+            });
+
+            buffer.Clear();
+            buffer.Add(new FollowerBuffer { Entity = NetworkedEntity.ServerEntity(merchant) });
+        }
+    }
+    */
 
     /*
     static void GetGlobalPatrol()

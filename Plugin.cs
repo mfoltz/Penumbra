@@ -114,7 +114,7 @@ internal class Plugin : BasePlugin
             5,5,5,5,
             5,5,5,5
             ],
-            RestockTime = 15,
+            RestockTime = 60,
             Roam = false
         });
 
@@ -143,7 +143,7 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99,99,99,99,99,99
             ],
-            RestockTime = 15,
+            RestockTime = 60,
             Roam = false
         });
 
@@ -164,7 +164,7 @@ internal class Plugin : BasePlugin
             300,300,300,500,500,500,500,500,500,500
             ],
             StockAmounts = [..Enumerable.Repeat(99, 20)],
-            RestockTime = 15,
+            RestockTime = 60,
             Roam = false
         });
 
@@ -190,7 +190,7 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99
             ],
-            RestockTime = 15,
+            RestockTime = 60,
             Roam = false
         });
 
@@ -216,7 +216,7 @@ internal class Plugin : BasePlugin
             [
             99,99,99,99,99
             ],
-            RestockTime = 15,
+            RestockTime = 60,
             Roam = false
         });
 
