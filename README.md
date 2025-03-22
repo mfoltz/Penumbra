@@ -32,7 +32,7 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - **Stock Amounts**: (string, default: "99,99,99,99,99")
   Stock amounts for outputs.
 - **Restock Time**: (int, default: 60)
-  Time between restocks in minutes (5 minimum or can use 0 for no restocking).
+  Time between restocks in minutes (1min minimum, no option to not restock atm since I completely forgot about that >_>).
 - **Roam**: (bool, default: false)
   Pace around or stay put.
 
