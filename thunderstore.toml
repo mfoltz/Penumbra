@@ -6,7 +6,7 @@ communities = ["v-rising"]
 repository = "https://thunderstore.io"
 
 [publish.categories]
-v-rising = ["1-0-update", "mods", "client"]
+v-rising = ["1-0-update", "mods", "server"]
 
 [package]
 namespace = "zfolmt"
