@@ -14,8 +14,8 @@ internal static class MerchantCommands
 {
     static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
 
-    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true, usage: ".pen sm [TraderPrefabGuid] [Wares] [Roam]", description: "Spawns merchant at mouse location with configured wares.")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader = 1631713257, int wares = 1, bool roam = true)
+    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true, usage: ".pen sm [TraderPrefab] [Wares]", description: "Spawns merchant at mouse location with configured wares.")]
+    public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader, int wares)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
@@ -37,7 +37,7 @@ internal static class MerchantCommands
 
         int index = wares - 1;
         MerchantWares merchantWares = GetMerchantWares(index);
-        SpawnMerchant(merchantPrefabGuid, entityInput.AimPosition, merchantWares, roam);
+        SpawnMerchant(merchantPrefabGuid, entityInput.AimPosition, merchantWares);
         ctx.Reply($"Spawned merchant: <color=white>{merchantPrefabGuid.GetPrefabName()}</color> | " +
             $"[<color=yellow>{(int)aimPosition.x}, {(int)aimPosition.y}, {(int)aimPosition.z}</color>] " +
             $"(<color=#00FFFF>{wares}</color>)");

@@ -33,6 +33,8 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
   Stock amounts for outputs.
 - **Restock Time**: (int, default: 15)
   Time between restocks in minutes (5 minimum or can use 0 for no restocking).
+- **Roam**: (int, default: 15)
+  Time between restocks in minutes (5 minimum or can use 0 for no restocking).
 
 ## Commands
 - `.penumbra spawnmerchant [TraderPrefabGuid] [Wares] [Roam]` 🔒

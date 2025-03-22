@@ -53,9 +53,9 @@ internal class MerchantService
         public List<int> InputAmounts;
         public List<int> StockAmounts;
         public int RestockInterval;
-        public DateTime NextRestockTime = DateTime.MinValue;
+        public DateTime NextRestockTime;
         public int MerchantIndex;
-        public bool Roam = false;
+        public bool Roam;
     }
 
     static readonly ConcurrentDictionary<Entity, MerchantWares> _activeMerchants = [];
@@ -96,18 +96,18 @@ internal class MerchantService
         while (true)
         {
             DateTime now = DateTime.UtcNow;
-            DateTime minValue = DateTime.MinValue;
 
-            foreach (var merchantWaresPair in ActiveMerchants)
+            foreach (var merchantWarePairs in ActiveMerchants)
             {
                 try
                 {
-                    Entity merchant = merchantWaresPair.Key;
-                    MerchantWares merchantWares = merchantWaresPair.Value;
+                    Entity merchant = merchantWarePairs.Key;
+                    MerchantWares merchantWares = merchantWarePairs.Value;
 
-                    if (merchantWares.NextRestockTime.Equals(minValue))
+                    if (!merchant.Exists())
                     {
-                        UpdateMerchantStock(merchant, merchantWares, now);
+                        _activeMerchants.TryRemove(merchant, out _);
+                        continue;
                     }
                     else if (now >= merchantWares.NextRestockTime)
                     {
@@ -127,6 +127,8 @@ internal class MerchantService
     }
     static void PopulateMerchantWares()
     {
+        DateTime now = DateTime.UtcNow;
+
         foreach (MerchantConfig merchantConfig in Merchants)
         {
             MerchantWares merchantWares = new()
@@ -137,17 +139,19 @@ internal class MerchantService
                 InputAmounts = [..merchantConfig.InputAmounts],
                 StockAmounts = [..merchantConfig.StockAmounts],
                 RestockInterval = merchantConfig.RestockTime,
-                MerchantIndex = Merchants.IndexOf(merchantConfig)
+                NextRestockTime = now.AddMinutes(merchantConfig.RestockTime),
+                MerchantIndex = Merchants.IndexOf(merchantConfig),
+                Roam = merchantConfig.Roam
             };
 
             _merchantWares.Add(merchantWares);
         }
     }
-    public static void SpawnMerchant(PrefabGUID traderPrefabGuid, float3 aimPosition, MerchantWares wares, bool roam)
+    public static void SpawnMerchant(PrefabGUID traderPrefabGuid, float3 aimPosition, MerchantWares wares)
     {
         Entity merchant = ServerGameManager.InstantiateEntityImmediate(Entity.Null, traderPrefabGuid);
 
-        ApplyOrRefreshModifications(merchant, roam);
+        ApplyOrRefreshModifications(merchant, wares.Roam);
         ModifyMerchant(merchant, aimPosition, wares).Start();
     }
     static void ApplyOrRefreshModifications(Entity merchant, bool roam)
@@ -254,7 +258,9 @@ internal class MerchantService
         });
 
         _activeMerchants.TryAdd(merchant, wares);
-        UpdateMerchantStock(merchant, wares, DateTime.UtcNow);
+
+        DateTime now = DateTime.UtcNow;
+        UpdateMerchantStock(merchant, wares, now);
     }
 
     /*
@@ -293,6 +299,7 @@ internal class MerchantService
     static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares, DateTime now)
     {
         float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
+        merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
 
         var outputBuffer = merchant.ReadBuffer<TradeOutput>();
         var entryBuffer = merchant.ReadBuffer<TraderEntry>();
@@ -328,21 +335,17 @@ internal class MerchantService
             });
         }
         
-        merchant.With((ref Trader trader) =>
+        merchant.AddWith((ref Trader trader) =>
         {
             trader.RestockTime = restockTime;
             trader.PrevRestockTime = Core.ServerTime;
             trader.NextRestockTime = Core.ServerTime + (double)restockTime;
         });
-
-        merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
     }
     static void GetActiveMerchants()
     {
         NativeArray<ArchetypeChunk> archetypeChunks = _merchantQuery.CreateArchetypeChunkArray(Allocator.Temp);
         EntityStorageInfoLookup entityStorageInfoLookup = EntityStorageInfoLookup;
-
-        DateTime now = DateTime.UtcNow;
         int count = 0;
 
         try
@@ -367,9 +370,8 @@ internal class MerchantService
                     }
 
                     MerchantWares merchantWares = GetMerchantWares(wares);
-
                     ApplyOrRefreshModifications(entity, merchantWares.Roam);
-                    UpdateMerchantStock(entity, merchantWares, now);
+                    // UpdateMerchantStock(entity, merchantWares, now);
 
                     _activeMerchants.TryAdd(entity, merchantWares);
                     count++;

@@ -169,7 +169,7 @@ internal static class Extensions // probably need to organize this soonTM
     }
     public static bool IsMerchant(this Entity entity)
     {
-        if (entity.Has<Trader>() && entity.Has<Immortal>())
+        if (entity.Has<Trader>() && entity.Has<Immortal>() && entity.Has<Energy>())
         {
             return true;
         }
