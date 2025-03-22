@@ -12,7 +12,7 @@ v-rising = ["1-0-update", "mods", "server"]
 [package]
 namespace = "zfolmt"
 name = "Penumbra"
-versionNumber = "1.0.0"
+versionNumber = "1.0.1"
 description = "Simple custom merchants, can use defaults or create your own!"
 websiteUrl = "https://github.com/mfoltz/Penumbra"
 containsNsfwContent = false
