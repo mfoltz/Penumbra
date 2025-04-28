@@ -1,3 +1,4 @@
+using Penumbra.Resources;
 using Il2CppInterop.Runtime;
 using ProjectM;
 using ProjectM.Scripting;
@@ -10,14 +11,14 @@ using Unity.Mathematics;
 using UnityEngine;
 using static Penumbra.Plugin;
 
-namespace Penumbra.Service;
+namespace Penumbra.Services;
 internal class MerchantService
 {
     static EntityManager EntityManager => Core.EntityManager;
     static ServerGameManager ServerGameManager => Core.ServerGameManager;
     static EntityTypeHandle EntityTypeHandle => EntityManager.GetEntityTypeHandle();
     static EntityStorageInfoLookup EntityStorageInfoLookup => EntityManager.GetEntityStorageInfoLookup();
-    static ComponentTypeHandle<Energy> EnergyHandle => EntityManager.GetComponentTypeHandle<Energy>(true);
+    static ComponentTypeHandle<Immortal> ImmortalHandle => EntityManager.GetComponentTypeHandle<Immortal>(true);
 
     const float TIME_CONSTANT = 60f;
     const float SPAWN_DELAY = 0.25f;
@@ -26,14 +27,13 @@ internal class MerchantService
     static readonly WaitForSeconds _spawnDelay = new(SPAWN_DELAY);
     static readonly WaitForSeconds _routineDelay = new(ROUTINE_DELAY);
 
-    static readonly PrefabGUID _infiniteInvulnerabilityBuff = new(454502690);
-    static readonly PrefabGUID _buffResistanceUberMob = Prefabs.BuffResistance_UberMob_IgniteResistant;
+    static readonly PrefabGUID _infiniteInvulnerabilityBuff = PrefabGUIDs.InfiniteInvulnerabilityBuff;
+    static readonly PrefabGUID _buffResistanceUberMob = PrefabGUIDs.BuffResistance_UberMob_IgniteResistant;
 
     static readonly ComponentType[] _merchantComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
-        ComponentType.ReadOnly(Il2CppType.Of<Immortal>()),
-        ComponentType.ReadOnly(Il2CppType.Of<Energy>())
+        ComponentType.ReadOnly(Il2CppType.Of<Immortal>())
     ];
 
     static readonly ComponentType[] _globalPatrolComponents =
@@ -67,11 +67,7 @@ internal class MerchantService
     public static MerchantWares GetMerchantWares(int index) => _merchantWares[index];
     public MerchantService()
     {
-        _merchantQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
-        {
-            All = _merchantComponents,
-            Options = EntityQueryOptions.IncludeDisabled
-        });
+        _merchantQuery = EntityManager.BuildEntityQuery(_merchantComponents, EntityQueryOptions.IncludeDisabled);
 
         /*
         _globalPatrolQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
@@ -213,9 +209,8 @@ internal class MerchantService
             unitStats.DamageReduction._Value = 100f;
             unitStats.PhysicalResistance._Value = 100f;
             unitStats.SpellResistance._Value = 100f;
-            unitStats.PvPProtected._Value = true;
-            unitStats.PvPResilience._Value = 1;
             unitStats.HealthRecovery._Value = 1f;
+            unitStats.FireResistance._Value = wares.MerchantIndex;
         });
 
         merchant.AddWith((ref Immortal immortal) =>
@@ -226,14 +221,6 @@ internal class MerchantService
         merchant.With((ref DynamicCollision dynamicCollision) =>
         {
             dynamicCollision.Immobile = true;
-        });
-
-        merchant.AddWith((ref Energy energy) =>
-        {
-            energy.MaxEnergy._Value = wares.MerchantIndex;
-            energy.GainPerSecond._Value = wares.MerchantIndex;
-            energy.RegainEnergyChance._Value = wares.MerchantIndex;
-            energy.Value = wares.MerchantIndex;
         });
 
         _activeMerchants.TryAdd(merchant, wares);
@@ -319,19 +306,18 @@ internal class MerchantService
             foreach (ArchetypeChunk archetypeChunk in archetypeChunks)
             {
                 NativeArray<Entity> entityArray = archetypeChunk.GetNativeArray(EntityTypeHandle);
-                NativeArray<Energy> energyArray = archetypeChunk.GetNativeArray(EnergyHandle);
+                NativeArray<Immortal> immortalArray = archetypeChunk.GetNativeArray(ImmortalHandle);
 
                 for (int i = 0; i < archetypeChunk.Count; i++)
                 {
                     Entity entity = entityArray[i];
-                    Energy energy = energyArray[i];
 
                     if (!entityStorageInfoLookup.Exists(entity)) continue;
 
-                    int wares = GetMerchantIndex(energy);
+                    int wares = GetMerchantIndex(entity);
                     if (wares < 0)
                     {
-                        Core.Log.LogWarning($"Merchant entity has invalid wares index ({wares}), using default! (0)");
+                        Core.Log.LogWarning($"Merchant entity has invalid wares index ({wares}), using default as fallback!");
                         wares = 0;
                     }
 
@@ -350,9 +336,14 @@ internal class MerchantService
             Core.Log.LogWarning($"Tracking {count} Penumbra merchants found in world!");
         }
     }
-    static int GetMerchantIndex(Energy energy)
+    static int GetMerchantIndex(Entity merchant)
     {
-        return (int)energy.RegainEnergyChance._Value;
+        if (merchant.TryGetComponent(out UnitStats unitStats))
+        {
+            return unitStats.FireResistance._Value;
+        }
+
+        return -1;
     }
 
     /*

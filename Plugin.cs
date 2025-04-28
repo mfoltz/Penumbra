@@ -64,7 +64,7 @@ internal class Plugin : BasePlugin
                 InputItems = Config.Bind(section, "InputItems", "", "Comma-separated item prefab IDs for input").Value.Split(','),
                 InputAmounts = ParseIntArray(Config.Bind(section, "InputAmounts", "", "Amounts for each input item").Value),
                 StockAmounts = ParseIntArray(Config.Bind(section, "StockAmounts", "", "Stock amounts for each output item").Value),
-                RestockTime = Config.Bind(section, "RestockTime", 0, "Restock time in minutes").Value,
+                RestockTime = Config.Bind(section, "RestockTime", 60, "Restock time in minutes").Value,
                 Roam = Config.Bind(section, "Roam", false, "Pace around or stay put.").Value
             };
 

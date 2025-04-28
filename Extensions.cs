@@ -1,14 +1,13 @@
 using Il2CppInterop.Runtime;
 using ProjectM;
-using ProjectM.Gameplay.Systems;
 using ProjectM.Network;
 using ProjectM.Scripting;
 using ProjectM.Shared;
 using Stunlock.Core;
 using System.Collections;
 using System.Runtime.InteropServices;
+using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
@@ -17,7 +16,7 @@ internal static class Extensions
 {
     static EntityManager EntityManager => Core.EntityManager;
     static ServerGameManager ServerGameManager => Core.ServerGameManager;
-    static DebugEventsSystem DebugEventsSystem => Core.DebugEventsSystem;
+    // static DebugEventsSystem DebugEventsSystem => Core.DebugEventsSystem;
     static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
 
     public delegate void WithRefHandler<T>(ref T item);
@@ -117,7 +116,7 @@ internal static class Extensions
     }
     public static string GetPrefabName(this PrefabGUID prefabGuid)
     {
-        return PrefabCollectionSystem.PrefabGuidToNameDictionary.TryGetValue(prefabGuid, out string prefabName) ? $"{prefabName}" : "String.Empty";
+        return Core.PrefabGuidsToNames.TryGetValue(prefabGuid, out string prefabName) ? $"{prefabName}" : "String.Empty";
     }
     public static void Add<T>(this Entity entity)
     {
@@ -142,7 +141,7 @@ internal static class Extensions
     }
     public static bool IsMerchant(this Entity entity)
     {
-        if (entity.Has<Trader>() && entity.Has<Immortal>() && entity.Has<Energy>())
+        if (entity.Has<Trader>() && entity.Has<Immortal>())
         {
             return true;
         }
@@ -254,20 +253,51 @@ internal static class Extensions
             });
         }
     }
-    public static void EnableAggroable(this Entity entity)
-    {
-        if (entity.Has<Aggroable>())
-        {
-            entity.With((ref Aggroable aggroable) =>
-            {
-                aggroable.Value._Value = true;
-                aggroable.DistanceFactor._Value = 1f;
-                aggroable.AggroFactor._Value = 1f;
-            });
-        }
-    }
     public static void Start(this IEnumerator routine)
     {
         Core.StartCoroutine(routine);
+    }
+    public static EntityQuery BuildEntityQuery(
+    this EntityManager entityManager,
+    ComponentType[] all)
+    {
+        var builder = new EntityQueryBuilder(Allocator.Temp);
+
+        foreach (var componentType in all)
+            builder.AddAll(componentType);
+
+        return entityManager.CreateEntityQuery(ref builder);
+    }
+    public static EntityQuery BuildEntityQuery(
+    this EntityManager entityManager,
+    ComponentType[] all,
+    EntityQueryOptions options)
+    {
+        var builder = new EntityQueryBuilder(Allocator.Temp);
+
+        foreach (var componentType in all)
+            builder.AddAll(componentType);
+
+        builder.WithOptions(options);
+
+        return entityManager.CreateEntityQuery(ref builder);
+    }
+    public static EntityQuery BuildEntityQuery(
+    this EntityManager entityManager,
+    ComponentType[] all,
+    ComponentType[] none,
+    EntityQueryOptions options)
+    {
+        var builder = new EntityQueryBuilder(Allocator.Temp);
+
+        foreach (var componentType in all)
+            builder.AddAll(componentType);
+
+        foreach (var componentType in none)
+            builder.AddNone(componentType);
+
+        builder.WithOptions(options);
+
+        return entityManager.CreateEntityQuery(ref builder);
     }
 }

@@ -1,10 +1,11 @@
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
-using Penumbra.Service;
+using Penumbra.Services;
 using ProjectM;
 using ProjectM.Network;
 using ProjectM.Physics;
 using ProjectM.Scripting;
+using Stunlock.Core;
 using System.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -26,6 +27,9 @@ internal static class Core
 
     static MonoBehaviour _monoBehaviour;
 
+    static readonly Dictionary<PrefabGUID, string> _prefabGuidsToNames = [];
+    public static IReadOnlyDictionary<PrefabGUID, string> PrefabGuidsToNames => _prefabGuidsToNames;
+
     public static bool _hasInitialized;
     public static void Initialize()
     {
@@ -39,12 +43,22 @@ internal static class Core
         NetworkIdSystem = ServerScriptMapper.GetSingleton<NetworkIdSystem.Singleton>();
 
         _ = new MerchantService();
+        InitializePrefabGuidNames();
 
         _hasInitialized = true;
     }
     static World GetServerWorld()
     {
         return World.s_AllWorlds.ToArray().FirstOrDefault(world => world.Name == "Server");
+    }
+    static void InitializePrefabGuidNames()
+    {
+        var namesToPrefabGuids = PrefabCollectionSystem.SpawnableNameToPrefabGuidDictionary;
+
+        foreach (var kvp in namesToPrefabGuids)
+        {
+            _prefabGuidsToNames[kvp.Value] = kvp.Key;
+        }
     }
     public static void StartCoroutine(IEnumerator routine)
     {

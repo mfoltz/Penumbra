@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+	<PropertyGroup>
+	<TargetFramework>net6.0</TargetFramework>
+	<ImplicitUsings>enable</ImplicitUsings>
 	<AssemblyName>Penumbra</AssemblyName>
-	<Version>1.0.1</Version>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	<Version>1.0.2</Version>
+	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<RestoreSources>
 		https://api.nuget.org/v3/index.json;
 		https://nuget.bepinex.dev/v3/index.json;
 	</RestoreSources>
-    <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+	<EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 	<BepInExPluginGuid>io.zfolmt.Penumbra</BepInExPluginGuid>
 	<LangVersion>preview</LangVersion>
 	<EnablePreviewFeatures>true</EnablePreviewFeatures>
@@ -18,23 +18,31 @@
 	<UseAppHost>false</UseAppHost>
 	<NuGetAudit>False</NuGetAudit>
 	<RunGenerateREADME>true</RunGenerateREADME>
-  </PropertyGroup>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <Optimize>True</Optimize>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	<Optimize>True</Optimize>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
-    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.668" IncludeAssets="compile" />
-    <PackageReference Include="VRising.Unhollowed.Client" Version="1.0.5.802790001" />
-    <PackageReference Include="VRising.VampireCommandFramework" Version="0.9.0" />
-  </ItemGroup>
+	<ItemGroup>
+	<PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+	<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.733" IncludeAssets="compile" />
+	<PackageReference Include="VRising.Unhollowed" Version="1.1.0-r91217-b18" />
+
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="VampireCommandFramework">
+	    <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\VRisingDedicatedServer\BepInEx\plugins\VampireCommandFramework.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+	
 	<Target Name="CopyDLLsServer" AfterTargets="Build">
 		<Message Text="DLL to V Rising Server" Importance="High" />
-		<Copy SourceFiles="$(TargetDir)$(ProjectName).dll" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\VRising\VRising_Server\BepInEx\plugins" />
+		<Copy SourceFiles="$(TargetDir)$(ProjectName).dll" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\VRisingDedicatedServer\BepInEx\plugins" />
 		<Message Text="DLL Server Copied OK" Importance="High" />
 	</Target>
+	
 	<Target Name="GenerateReadMe" Condition="'$(RunGenerateREADME)' == 'true'" AfterTargets="Build">
 		<Exec Command="dotnet &quot;$(TargetDir)$(AssemblyName).dll&quot; &quot;$(ProjectDir)Commands&quot; &quot;$(ProjectDir)README.md&quot;" />
 	</Target>
