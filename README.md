@@ -1,7 +1,7 @@
 ## Table of Contents
 
 - [BepInExRC2](https://github.com/decaprime/VRising-Modding/releases/tag/1.733.2) <--- **REQUIRED**
-- [VCF1.1](https://github.com/Odjit/VampireCommandFramework/releases/tag/1.1) <--- **RECOMMENDED**
+- [VCF1.1](https://github.com/Odjit/VampireCommandFramework/releases/tag/1.1) <--- **REQUIRED**
 - [Sponsors](#sponsors)
 - [Features](#features)
 - [Configuration](#configuration)
