@@ -1,3 +1,6 @@
+`1.0.4`
+- minor change after hotfix
+
 `1.0.3`
 - Back to VRising.Unhollowed.Client nuget for github workflow, versioning for Thunderstore
 

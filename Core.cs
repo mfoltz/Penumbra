@@ -41,7 +41,7 @@ internal static class Core
         ServerScriptMapper = Server.GetExistingSystemManaged<ServerScriptMapper>();
         EntityCommandBufferSystem = Server.GetExistingSystemManaged<EntityCommandBufferSystem>();
         NetworkIdSystem = ServerScriptMapper.GetSingleton<NetworkIdSystem.Singleton>();
-
+        
         _ = new MerchantService();
         InitializePrefabGuidNames();
 
