@@ -315,15 +315,23 @@ internal class MerchantService
                     if (!entityStorageInfoLookup.Exists(entity)) continue;
 
                     int wares = GetMerchantIndex(entity);
+
+                    /*
                     if (wares < 0)
                     {
                         Core.Log.LogWarning($"Merchant entity has invalid wares index ({wares}), using default as fallback!");
                         wares = 0;
                     }
+                    */
+
+                    if (wares < 0 || wares >= _merchantWares.Count)
+                    {
+                        // Core.Log.LogWarning($"Invalid wares index ({wares}) for Penumbra merchant, skipping! (did you remove a set of wares for an active merchant?)");
+                        continue;
+                    }
 
                     MerchantWares merchantWares = GetMerchantWares(wares);
                     ApplyOrRefreshModifications(entity, merchantWares.Roam);
-                    // UpdateMerchantStock(entity, merchantWares, now);
 
                     _activeMerchants.TryAdd(entity, merchantWares);
                     count++;
