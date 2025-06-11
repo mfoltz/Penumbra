@@ -1,7 +1,5 @@
 ## Table of Contents
 
-- [BepInExRC2](https://github.com/decaprime/VRising-Modding/releases/tag/1.733.2) <--- **REQUIRED**
-- [VCF1.1](https://github.com/Odjit/VampireCommandFramework/releases/tag/1.1) <--- **REQUIRED**
 - [Sponsors](#sponsors)
 - [Features](#features)
 - [Configuration](#configuration)
@@ -14,7 +12,7 @@
 
 ## Sponsors
 
-Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMike; Imperivm Draconis; Geoffrey D.; SirSaia; Robin C.; K Simp; Colin F.; Jade K.;
+Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMike; Imperivm Draconis; Geoffrey D.; SirSaia; Robin C.; Colin F.; Jade K.;
 
 ## Features
 
@@ -45,6 +43,24 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra removemerchant` 🔒
   - Removes hovered merchant.
   - Shortcut: *.pen rm*
+- `.penumbra redeemtokens`
+  - Redeems Sanguis.
+  - Shortcut: *.pen rt*
+- `.penumbra gettokens`
+  - Shows and updates tokens.
+  - Shortcut: *.pen gt*
+- `.penumbra getdaily`
+  - Checks or awards daily login reward.
+  - Shortcut: *.pen gd*
+- `.penumbra redeemtokens`
+  - Redeems Sanguis.
+  - Shortcut: *.pen rt*
+- `.penumbra gettokens`
+  - Shows and updates tokens.
+  - Shortcut: *.pen gt*
+- `.penumbra getdaily`
+  - Shows time left until daily login valid again or awards daily login if eligible without needing to log out/in.
+  - Shortcut: *.pen gd*
 
 ## Credits
 

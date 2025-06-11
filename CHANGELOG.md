@@ -1,5 +1,7 @@
-`1.0.5`
-- updated VCF version (other stuff tentatively soon'ish, somewhat caught up on Bloodcraft and need to knock out Bloodstone then targeting Penumbra)
+`1.1.5`
+- integrated token system
+- added name, trader prefab and position entries to config; name for easier keeping track of which wares are which and is also used to verify existence in world, trader prefab and position for saving existing merchant details to then be able to be used on another server (if these have valid values and no existing merchants detected with same name mod will spawn them in at that location with the prefab)
+- changed faction for merchants to prevent being targeted for combat
 
 `1.0.4`
 - minor change after hotfix

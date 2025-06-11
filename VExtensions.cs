@@ -10,14 +10,15 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using static Penumbra.Services.LocalizationService;
 
 namespace Penumbra;
-internal static class Extensions
+internal static class VExtensions
 {
     static EntityManager EntityManager => Core.EntityManager;
     static ServerGameManager ServerGameManager => Core.ServerGameManager;
-    // static DebugEventsSystem DebugEventsSystem => Core.DebugEventsSystem;
-    static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
+
+    const string EMPTY_KEY = "LocalizationKey.Empty";
 
     public delegate void WithRefHandler<T>(ref T item);
     public static void With<T>(this Entity entity, WithRefHandler<T> action) where T : struct
@@ -116,7 +117,23 @@ internal static class Extensions
     }
     public static string GetPrefabName(this PrefabGUID prefabGuid)
     {
-        return Core.PrefabGuidsToNames.TryGetValue(prefabGuid, out string prefabName) ? $"{prefabName}" : "String.Empty";
+        return PrefabGuidNames.TryGetValue(prefabGuid, out string prefabName) ? $"{prefabName} {prefabGuid}" : EMPTY_KEY;
+    }
+    public static string GetLocalizedName(this PrefabGUID prefabGuid)
+    {
+        string prefabName = GetNameFromPrefabGuid(prefabGuid);
+
+        if (!string.IsNullOrEmpty(prefabName))
+        {
+            return prefabName;
+        }
+
+        if (PrefabGuidNames.TryGetValue(prefabGuid, out prefabName))
+        {
+            return prefabName;
+        }
+
+        return EMPTY_KEY;
     }
     public static void Add<T>(this Entity entity)
     {
@@ -253,51 +270,90 @@ internal static class Extensions
             });
         }
     }
+    public static float3 GetPosition(this Entity entity)
+    {
+        if (entity.TryGetComponent(out Translation translation))
+        {
+            return translation.Value;
+        }
+
+        return float3.zero;
+    }
     public static void Start(this IEnumerator routine)
     {
         Core.StartCoroutine(routine);
     }
-    public static EntityQuery BuildEntityQuery(
-    this EntityManager entityManager,
-    ComponentType[] all)
+    public static void LogEntity(this Entity entity)
     {
+        World world = EntityManager.World;
+        Il2CppSystem.Text.StringBuilder sb = new();
+
+        try
+        {
+            EntityDebuggingUtility.DumpEntity(world, entity, true, sb);
+            Core.Log.LogInfo($"Entity Dump:\n{sb.ToString()}");
+        }
+        catch (Exception e)
+        {
+            Core.Log.LogWarning($"Error dumping entity: {e.Message}");
+        }
+    }
+    public static NativeAccessor<Entity> ToEntityArrayAccessor(this EntityQuery entityQuery, Allocator allocator = Allocator.Temp)
+    {
+        NativeArray<Entity> entities = entityQuery.ToEntityArray(allocator);
+        return new(entities);
+    }
+    public static NativeAccessor<T> ToComponentDataArrayAccessor<T>(this EntityQuery entityQuery, Allocator allocator = Allocator.Temp) where T : unmanaged
+    {
+        NativeArray<T> components = entityQuery.ToComponentDataArray<T>(allocator);
+        return new(components);
+    }
+    public static EntityQuery BuildEntityQuery(
+        this EntityManager entityManager,
+        ComponentType[] allTypes,
+        ComponentType[] anyTypes = null,
+        ComponentType[] noneTypes = null,
+        EntityQueryOptions? options = default)
+    {
+        if (allTypes == null || allTypes.Length == 0)
+            throw new ArgumentException("AllTypes must contain at least one component!", nameof(allTypes));
+
         var builder = new EntityQueryBuilder(Allocator.Temp);
 
-        foreach (var componentType in all)
+        foreach (var componentType in allTypes)
             builder.AddAll(componentType);
+
+        if (anyTypes != null)
+        {
+            foreach (var componentType in anyTypes)
+                builder.AddAny(componentType);
+        }
+
+        if (noneTypes != null)
+        {
+            foreach (var componentType in noneTypes)
+                builder.AddNone(componentType);
+        }
+
+        if (options.HasValue)
+            builder.WithOptions(options.Value);
 
         return entityManager.CreateEntityQuery(ref builder);
     }
-    public static EntityQuery BuildEntityQuery(
-    this EntityManager entityManager,
-    ComponentType[] all,
-    EntityQueryOptions options)
+    public readonly struct NativeAccessor<T> : IDisposable where T : unmanaged
     {
-        var builder = new EntityQueryBuilder(Allocator.Temp);
-
-        foreach (var componentType in all)
-            builder.AddAll(componentType);
-
-        builder.WithOptions(options);
-
-        return entityManager.CreateEntityQuery(ref builder);
-    }
-    public static EntityQuery BuildEntityQuery(
-    this EntityManager entityManager,
-    ComponentType[] all,
-    ComponentType[] none,
-    EntityQueryOptions options)
-    {
-        var builder = new EntityQueryBuilder(Allocator.Temp);
-
-        foreach (var componentType in all)
-            builder.AddAll(componentType);
-
-        foreach (var componentType in none)
-            builder.AddNone(componentType);
-
-        builder.WithOptions(options);
-
-        return entityManager.CreateEntityQuery(ref builder);
+        static NativeArray<T> _array;
+        public NativeAccessor(NativeArray<T> array)
+        {
+            _array = array;
+        }
+        public T this[int index]
+        {
+            get => _array[index];
+            set => _array[index] = value;
+        }
+        public int Length => _array.Length;
+        public NativeArray<T>.Enumerator GetEnumerator() => _array.GetEnumerator();
+        public void Dispose() => _array.Dispose();
     }
 }

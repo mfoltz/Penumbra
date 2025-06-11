@@ -10,6 +10,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 using static Penumbra.Plugin;
+using ProjectM.Gameplay.Scripting;
+using System.Globalization;
 
 namespace Penumbra.Services;
 internal class MerchantService
@@ -29,11 +31,13 @@ internal class MerchantService
 
     static readonly PrefabGUID _infiniteInvulnerabilityBuff = PrefabGUIDs.InfiniteInvulnerabilityBuff;
     static readonly PrefabGUID _buffResistanceUberMob = PrefabGUIDs.BuffResistance_UberMob_IgniteResistant;
+    static readonly PrefabGUID _ignoredFaction = PrefabGUIDs.Faction_Ignored;
 
     static readonly ComponentType[] _merchantComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
-        ComponentType.ReadOnly(Il2CppType.Of<Immortal>())
+        ComponentType.ReadOnly(Il2CppType.Of<Immortal>()),
+        ComponentType.ReadOnly(Il2CppType.Of<NameableInteractable>()),
     ];
 
     static readonly ComponentType[] _globalPatrolComponents =
@@ -49,6 +53,7 @@ internal class MerchantService
     // static Entity _globalPatrol;
     public class MerchantWares
     {
+        public string Name;
         public List<PrefabGUID> OutputItems;
         public List<int> OutputAmounts;
         public List<PrefabGUID> InputItems;
@@ -58,6 +63,8 @@ internal class MerchantService
         public DateTime NextRestockTime = DateTime.MaxValue;
         public int MerchantIndex;
         public bool Roam;
+        public PrefabGUID TraderPrefab;
+        public float3 Position;
     }
 
     static readonly ConcurrentDictionary<Entity, MerchantWares> _activeMerchants = [];
@@ -67,7 +74,7 @@ internal class MerchantService
     public static MerchantWares GetMerchantWares(int index) => _merchantWares[index];
     public MerchantService()
     {
-        _merchantQuery = EntityManager.BuildEntityQuery(_merchantComponents, EntityQueryOptions.IncludeDisabled);
+        _merchantQuery = EntityManager.BuildEntityQuery(_merchantComponents, options: EntityQueryOptions.IncludeDisabled);
 
         /*
         _globalPatrolQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
@@ -81,15 +88,15 @@ internal class MerchantService
         {
             PopulateMerchantWares();
             GetActiveMerchants();
-            // GetGlobalPatrol();
-            RestockMerchantsRoutine().Start();
+            AutoSpawnMerchants();
+            RestockRoutine().Start();
         }
         catch (Exception ex)
         {
             Core.Log.LogError(ex);
         }
     }
-    static IEnumerator RestockMerchantsRoutine()
+    static IEnumerator RestockRoutine()
     {
         while (true)
         {
@@ -135,6 +142,7 @@ internal class MerchantService
         {
             MerchantWares merchantWares = new()
             {
+                Name = merchantConfig.Name,
                 OutputItems = [..merchantConfig.OutputItems.Select(id => new PrefabGUID(int.Parse(id)))],
                 OutputAmounts = [..merchantConfig.OutputAmounts],
                 InputItems = [..merchantConfig.InputItems.Select(id => new PrefabGUID(int.Parse(id)))],
@@ -142,7 +150,9 @@ internal class MerchantService
                 StockAmounts = [..merchantConfig.StockAmounts],
                 RestockInterval = merchantConfig.RestockTime,
                 MerchantIndex = Merchants.IndexOf(merchantConfig),
-                Roam = merchantConfig.Roam
+                Roam = merchantConfig.Roam,
+                TraderPrefab = new(merchantConfig.TraderPrefab),
+                Position = ParseFloat3FromString(merchantConfig.Position)
             };
 
             _merchantWares.Add(merchantWares);
@@ -152,10 +162,11 @@ internal class MerchantService
     {
         Entity merchant = ServerGameManager.InstantiateEntityImmediate(Entity.Null, traderPrefabGuid);
 
-        ApplyOrRefreshModifications(merchant, wares.Roam);
+        ApplyOrRefreshModifications(merchant, wares);
         ModifyMerchant(merchant, aimPosition, wares).Start();
+        Instance.UpdateMerchantDefinition(wares.MerchantIndex, traderPrefabGuid.GuidHash, aimPosition);
     }
-    static void ApplyOrRefreshModifications(Entity merchant, bool roam)
+    static void ApplyOrRefreshModifications(Entity merchant, MerchantWares wares)
     {
         if (merchant.Exists())
         {
@@ -179,11 +190,19 @@ internal class MerchantService
                 immortal.IsImmortal = true;
             });
 
+            merchant.AddWith((ref NameableInteractable nameableInteractable) =>
+            {
+                nameableInteractable.Name = new(wares.Name);
+            });
+
             merchant.With((ref DynamicCollision dynamicCollision) =>
             {
                 dynamicCollision.Immobile = true;
             });
 
+            MakeImperviousAndIgnored(merchant, wares.Roam);
+
+            /*
             if (!roam && merchant.TryApplyAndGetBuff(_infiniteInvulnerabilityBuff, out Entity buffEntity))
             {
                 buffEntity.AddWith((ref ModifyMovementSpeedBuff modifyMovementSpeed) =>
@@ -196,6 +215,30 @@ internal class MerchantService
             {
                 merchant.TryApplyBuff(_infiniteInvulnerabilityBuff);
             }
+            */
+        }
+    }
+    static void MakeImperviousAndIgnored(Entity merchant, bool roam = false)
+    {
+        Entity buffEntity = ServerGameManager.InstantiateBuffEntityImmediate(merchant, merchant, _infiniteInvulnerabilityBuff);
+
+        if (buffEntity.Exists())
+        {
+            if (!roam)
+            {
+                buffEntity.AddWith((ref ModifyMovementSpeedBuff modifyMovementSpeed) =>
+                {
+                    modifyMovementSpeed.MoveSpeed = 0;
+                    modifyMovementSpeed.MultiplyAdd = false;
+                });
+            }
+
+            buffEntity.AddWith((ref Script_Buff_ModifyFaction_DataServer modifyFaction) =>
+            {
+                modifyFaction.Faction = _ignoredFaction;
+            });
+
+            buffEntity.Add<ScriptSpawn>();
         }
     }
     static IEnumerator ModifyMerchant(Entity merchant, float3 aimPosition, MerchantWares wares)
@@ -316,14 +359,6 @@ internal class MerchantService
 
                     int wares = GetMerchantIndex(entity);
 
-                    /*
-                    if (wares < 0)
-                    {
-                        Core.Log.LogWarning($"Merchant entity has invalid wares index ({wares}), using default as fallback!");
-                        wares = 0;
-                    }
-                    */
-
                     if (wares < 0 || wares >= _merchantWares.Count)
                     {
                         // Core.Log.LogWarning($"Invalid wares index ({wares}) for Penumbra merchant, skipping! (did you remove a set of wares for an active merchant?)");
@@ -331,7 +366,7 @@ internal class MerchantService
                     }
 
                     MerchantWares merchantWares = GetMerchantWares(wares);
-                    ApplyOrRefreshModifications(entity, merchantWares.Roam);
+                    ApplyOrRefreshModifications(entity, merchantWares);
 
                     _activeMerchants.TryAdd(entity, merchantWares);
                     count++;
@@ -352,6 +387,53 @@ internal class MerchantService
         }
 
         return -1;
+    }
+    static float3 ParseFloat3FromString(string configString)
+    {
+        if (string.IsNullOrEmpty(configString))
+        {
+            return float3.zero;
+        }
+
+        string[] parts = configString.Split(',');
+        if (parts.Length != 3)
+        {
+            throw new FormatException("Invalid float3 string format. Expected format: 'x,y,z'.");
+        }
+
+        return new float3(
+            float.Parse(parts[0], CultureInfo.InvariantCulture),
+            float.Parse(parts[1], CultureInfo.InvariantCulture),
+            float.Parse(parts[2], CultureInfo.InvariantCulture)
+        );
+    }
+    static void AutoSpawnMerchants()
+    {
+        for (int i = 0; i < _merchantWares.Count; i++)
+        {
+            var wares = _merchantWares[i];
+
+            string merchantName = wares.Name;
+            bool found = false;
+
+            if (wares.TraderPrefab.IsEmpty() || wares.Position.Equals(float3.zero))
+                continue;
+
+            foreach (var kvp in _activeMerchants)
+            {
+                if (kvp.Key.TryGetComponent(out NameableInteractable nameableInteractable) && merchantName.Equals(nameableInteractable.Name.Value))
+                {
+                     found = true;
+                }
+            }
+
+            if (!found)
+            {
+                Core.Log.LogInfo($"[MerchantService] Auto-spawning merchant " +
+                                 $"#{i + 1} ({wares.TraderPrefab.GetPrefabName()}) at {wares.Position}");
+                SpawnMerchant(wares.TraderPrefab, wares.Position, wares);
+            }
+        }
     }
 
     /*
