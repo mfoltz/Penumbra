@@ -37,7 +37,7 @@ internal class MerchantService
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
         ComponentType.ReadOnly(Il2CppType.Of<Immortal>()),
-        ComponentType.ReadOnly(Il2CppType.Of<NameableInteractable>()),
+        // ComponentType.ReadOnly(Il2CppType.Of<NameableInteractable>()),
     ];
 
     static readonly ComponentType[] _globalPatrolComponents =
