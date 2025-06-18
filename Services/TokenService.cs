@@ -157,6 +157,30 @@ internal static class TokenService
         DateTime nextEligible = tokenData.TimeData.LoginTime.AddDays(1);
         return nextEligible - DateTime.UtcNow;
     }
+    public static bool TryGiveDaily(ulong steamId, User user, Entity characterEntity)
+    {
+        if (!characterEntity.Exists()) return false;
+        if (!PlayerTokens.TryGetValue(steamId, out var tokenData) || !IsEligibleForDaily(tokenData)) return false;
+
+        string itemName = _dailyItem.GetLocalizedName();
+        string msg = $"You've received <color=#00FFFF>{itemName}</color>x<color=white>{_dailyQuantity}</color> for logging in today!";
+        bool placed = ServerGameManager.TryAddInventoryItem(characterEntity, _dailyItem, _dailyQuantity);
+
+        FixedString512Bytes chat =
+            placed ? new FixedString512Bytes(msg)
+                   : new FixedString512Bytes($"{msg} It dropped on the ground because your inventory was full.");
+
+        if (!placed)
+            InventoryUtilitiesServer.CreateDropItem(EntityManager, characterEntity, _dailyItem, _dailyQuantity, Entity.Null);
+
+        ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref chat);
+
+        tokenData.TimeData = new TimeBlob(tokenData.TimeData.TokenTime, DateTime.UtcNow);
+        steamId.UpdateAndSaveTokens(tokenData);
+        return true;
+    }
+
+    /*
     public static void TryGiveDaily(User user, Entity characterEntity)
     {
         if (!characterEntity.Exists()) return;
@@ -176,6 +200,7 @@ internal static class TokenService
             ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref fixedMessage);
         }
     }
+    */
     public static void UpdateAndSaveTokens(this ulong steamId, TokenBlob tokenBlob)
     {
         _playerTokens[steamId] = tokenBlob;

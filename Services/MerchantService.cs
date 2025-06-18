@@ -112,7 +112,6 @@ internal class MerchantService
                     if (!merchant.Exists())
                     {
                         _activeMerchants.TryRemove(merchant, out _);
-                        continue;
                     }
                     else if (merchantWares.NextRestockTime.Equals(DateTime.MaxValue))
                     {
@@ -273,6 +272,8 @@ internal class MerchantService
     }
     static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares, DateTime now)
     {
+        if (merchantWares.RestockInterval == 0) return;
+
         float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
         merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
 
@@ -319,6 +320,8 @@ internal class MerchantService
     }
     static void SyncNextRestock(Entity merchant, MerchantWares merchantWares)
     {
+        if (merchantWares.RestockInterval == 0) return;
+
         Trader trader = merchant.Read<Trader>();
         double now = Core.ServerTime;
 

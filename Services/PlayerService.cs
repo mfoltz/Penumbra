@@ -76,22 +76,13 @@ internal static class PlayerService
 
         if (!TokenService.PlayerTokens.TryGetValue(steamId, out var tokenData))
         {
-            steamId.CreateTokens(); // new user: tokens and daily state initialized
-            if (_daily) TokenService.TryGiveDaily(player.User, player.CharEntity);
-
-            return;
+            steamId.CreateTokens();
         }
 
         tokenData.TimeData = new TokenService.TimeBlob(DateTime.UtcNow, tokenData.TimeData.LoginTime);
         steamId.UpdateAndSaveTokens(tokenData);
 
-        if (_daily && TokenService.IsEligibleForDaily(tokenData))
-        {
-            TokenService.TryGiveDaily(player.User, player.CharEntity);
-            tokenData.TimeData = new TokenService.TimeBlob(tokenData.TimeData.TokenTime, DateTime.UtcNow);
-
-            steamId.UpdateAndSaveTokens(tokenData);
-        }
+        if (_daily) TokenService.TryGiveDaily(player.User.PlatformId, player.User, player.CharEntity);
     }
     public static bool TryGetPlayerInfo(this ulong steamId, out PlayerInfo playerInfo)
     {
