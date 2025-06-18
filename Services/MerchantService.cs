@@ -89,14 +89,14 @@ internal class MerchantService
             PopulateMerchantWares();
             GetActiveMerchants();
             AutoSpawnMerchants();
-            RestockRoutine().Start();
+            RestockMerchantsRoutine().Start();
         }
         catch (Exception ex)
         {
             Core.Log.LogError(ex);
         }
     }
-    static IEnumerator RestockRoutine()
+    static IEnumerator RestockMerchantsRoutine()
     {
         while (true)
         {
@@ -273,6 +273,19 @@ internal class MerchantService
     static void UpdateMerchantStock(Entity merchant, MerchantWares merchantWares, DateTime now)
     {
         if (merchantWares.RestockInterval == 0) return;
+
+        int expectedCount = merchantWares.OutputItems.Count;
+        if (merchantWares.OutputAmounts.Count != expectedCount ||
+            merchantWares.InputItems.Count != expectedCount ||
+            merchantWares.InputAmounts.Count != expectedCount ||
+            merchantWares.StockAmounts.Count != expectedCount)
+        {
+            Core.Log.LogWarning($"[UpdateMerchantStock] Mismatched list lengths in MerchantWares! ({merchantWares.MerchantIndex}) Stock won't update for {merchantWares.Name} until fixed:" +
+                                          $" OutputItems={merchantWares.OutputItems.Count}, OutputAmounts={merchantWares.OutputAmounts.Count}, " +
+                                          $"InputItems={merchantWares.InputItems.Count}, InputAmounts={merchantWares.InputAmounts.Count}, " +
+                                          $"StockAmounts={merchantWares.StockAmounts.Count}");
+            return;
+        }
 
         float restockTime = merchantWares.RestockInterval * TIME_CONSTANT;
         merchantWares.NextRestockTime = now.AddMinutes(merchantWares.RestockInterval);
