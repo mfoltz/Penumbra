@@ -123,6 +123,33 @@ internal static class TokenService
     */
 
     [Serializable]
+    public struct TimeBlob
+    {
+        public DateTime TokenTime { get; set; }
+        public DateTime LoginTime { get; set; }
+
+        public TimeBlob(DateTime tokenTime, DateTime loginTime)
+        {
+            TokenTime = tokenTime;
+            LoginTime = loginTime;
+        }
+    }
+
+    [Serializable]
+    public struct TokenBlob
+    {
+        public int Tokens { get; set; }
+        public TimeBlob TimeData { get; set; }
+
+        public TokenBlob(int tokens, TimeBlob timeBlob)
+        {
+            Tokens = tokens;
+            TimeData = timeBlob;
+        }
+    }
+
+    /*
+    [Serializable]
     public struct TimeBlob(DateTime tokenTime, DateTime dailyLogin)
     {
         public DateTime TokenTime = tokenTime;  
@@ -135,6 +162,7 @@ internal static class TokenService
         public int Tokens = tokens;
         public TimeBlob TimeData = timeBlob;
     }
+    */
     public static IReadOnlyDictionary<ulong, TokenBlob> PlayerTokens => _playerTokens;
     static ConcurrentDictionary<ulong, TokenBlob> _playerTokens = [];
     public static TokenBlob AccumulateTime(TokenBlob tokenData)

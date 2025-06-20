@@ -1,3 +1,6 @@
+`1.1.7`
+- fixed json deserialization for tokens/login data
+
 `1.1.6`
 - merchants with restock intervals of 0 will not refill their wares as was originally intended
 - fixed daily login timestamp
