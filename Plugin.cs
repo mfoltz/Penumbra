@@ -310,7 +310,7 @@ internal class Plugin : BasePlugin
 
         LogInstance.LogWarning("Created default merchants!");
     }
-    void SaveMerchants()
+    internal void SaveMerchants()
     {
         var keysToRemove = Config.Keys
             .Where(k => k.Section.StartsWith("Merchant", StringComparison.Ordinal))

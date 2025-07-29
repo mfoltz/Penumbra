@@ -59,4 +59,35 @@ internal static class MerchantCommands
             ctx.Reply("Not hovering over Penumbra merchant!");
         }
     }
+
+    [Command(name: "additem", shortHand: "ai", adminOnly: true,
+             usage: ".pen ai [Merchant] [Item] [Price] [Amount]",
+             description: "Adds or updates merchant stock.")]
+    public static void AddMerchantItemCommand(ChatCommandContext ctx, int merchant,
+        int item, int price, int amount)
+    {
+        int index = merchant - 1;
+
+        if (index < 0)
+        {
+            ctx.Reply("Invalid merchant index!");
+            return;
+        }
+
+        PrefabGUID itemGuid = new(item);
+        if (!PrefabCollectionSystem._PrefabGuidToEntityMap.ContainsKey(itemGuid))
+        {
+            ctx.Reply("Invalid item prefabGuid!");
+            return;
+        }
+
+        if (price <= 0 || amount <= 0)
+        {
+            ctx.Reply("Price and amount must be positive numbers!");
+            return;
+        }
+
+        AddMerchantItem(index, itemGuid, price, amount);
+        ctx.Reply($"Updated merchant {merchant} with item {itemGuid.GetPrefabName()}.");
+    }
 }
