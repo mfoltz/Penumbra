@@ -12,6 +12,7 @@ using UnityEngine;
 using static Penumbra.Plugin;
 using ProjectM.Gameplay.Scripting;
 using System.Globalization;
+using System;
 
 namespace Penumbra.Services;
 internal class MerchantService
@@ -450,6 +451,46 @@ internal class MerchantService
                 SpawnMerchant(wares.TraderPrefab, wares.Position, wares);
             }
         }
+    }
+
+    internal static void AddMerchantItem(int merchantIndex, PrefabGUID item, int price, int amount)
+    {
+        if (merchantIndex < 0)
+            return;
+
+        while (merchantIndex >= Merchants.Count)
+        {
+            Merchants.Add(new MerchantConfig
+            {
+                Name = $"Merchant{Merchants.Count + 1}",
+                OutputItems = Array.Empty<string>(),
+                OutputAmounts = Array.Empty<int>(),
+                InputItems = Array.Empty<string>(),
+                InputAmounts = Array.Empty<int>(),
+                StockAmounts = Array.Empty<int>(),
+                RestockTime = 60,
+                TraderPrefab = 0,
+                Position = string.Empty,
+                Roam = false
+            });
+        }
+
+        MerchantConfig config = Merchants[merchantIndex];
+
+        config.OutputItems = [..config.OutputItems, item.GuidHash.ToString()];
+        config.OutputAmounts = [..config.OutputAmounts, amount];
+        config.InputItems = [..config.InputItems, Plugin._tokensConfig.TokenItem.GuidHash.ToString()];
+        config.InputAmounts = [..config.InputAmounts, price];
+        config.StockAmounts = [..config.StockAmounts, amount];
+
+        RefreshMerchantWares();
+        Plugin.Instance.SaveMerchants();
+    }
+
+    internal static void RefreshMerchantWares()
+    {
+        _merchantWares.Clear();
+        PopulateMerchantWares();
     }
 
     /*
