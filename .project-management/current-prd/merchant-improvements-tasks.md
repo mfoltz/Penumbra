@@ -10,7 +10,7 @@
   - *Due:* 2025-08-03
   - Update existing merchant entries or add new ones with validation.
 
-- [ ] **Update merchant stock via existing restock logic when items are added/updated**
+- [x] **Update merchant stock via existing restock logic when items are added/updated**
   - *Owner:* Codex
   - *Due:* 2025-08-03
   - Update merchant stock via existing restock logic when items are added/updated.
