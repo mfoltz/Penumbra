@@ -485,6 +485,19 @@ internal class MerchantService
 
         RefreshMerchantWares();
         Plugin.Instance.SaveMerchants();
+
+        MerchantWares updatedWares = GetMerchantWares(merchantIndex);
+        DateTime now = DateTime.UtcNow;
+
+        foreach (var kvp in _activeMerchants)
+        {
+            if (kvp.Value.MerchantIndex == merchantIndex)
+            {
+                _activeMerchants[kvp.Key] = updatedWares;
+                // Refresh trade buffers so players see new stock right away
+                UpdateMerchantStock(kvp.Key, updatedWares, now);
+            }
+        }
     }
 
     internal static void RefreshMerchantWares()
