@@ -1,11 +1,11 @@
 # Merchant Improvements Tasks
 
-- [ ] **Design merchant command syntax**
+- [x] **Design merchant command syntax**
   - *Owner:* Codex
   - *Due:* 2025-08-03
   - Parse parameters for merchant ID, item, price, and amount.
 
-- [ ] **Implement command handler**
+- [x] **Implement command handler**
   - *Owner:* Codex
   - *Due:* 2025-08-03
   - Update existing merchant entries or add new ones with validation.
