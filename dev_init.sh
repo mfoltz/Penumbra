@@ -9,7 +9,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$SCRIPT_DIR/Penumbra.csproj"
-dotnet build --no-restore -c Release -p:RunGenerateREADME=false "$PROJECT"
+dotnet build --no-restore -p:RunGenerateREADME=false "$PROJECT"
 
 DLL_PATH="$SCRIPT_DIR/bin/Release/net6.0/Penumbra.dll"
 
