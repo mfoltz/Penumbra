@@ -3,6 +3,7 @@ using ProjectM;
 using Stunlock.Core;
 using Unity.Entities;
 using VampireCommandFramework;
+using System.Globalization;
 using static Penumbra.Plugin;
 
 namespace Penumbra.Commands;
@@ -91,7 +92,7 @@ public static class TokenCommands
         if (!TokenService.IsEligibleForDaily(tokenData))
         {
             TimeSpan timeRemaining = TokenService.TimeUntilNextDaily(tokenData);
-            string timeLeft = string.Format("{0:D2}:{1:D2}:{2:D2}",
+            string timeLeft = string.Format(CultureInfo.InvariantCulture, "{0:D2}:{1:D2}:{2:D2}",
                                 timeRemaining.Hours,
                                 timeRemaining.Minutes,
                                 timeRemaining.Seconds);
