@@ -477,9 +477,9 @@ internal class MerchantService
 
         MerchantConfig config = Merchants[merchantIndex];
 
-        config.OutputItems = [..config.OutputItems, item.GuidHash.ToString()];
+        config.OutputItems = [..config.OutputItems, item.GuidHash.ToString(CultureInfo.InvariantCulture)];
         config.OutputAmounts = [..config.OutputAmounts, amount];
-        config.InputItems = [..config.InputItems, Plugin._tokensConfig.TokenItem.GuidHash.ToString()];
+        config.InputItems = [..config.InputItems, Plugin._tokensConfig.TokenItem.GuidHash.ToString(CultureInfo.InvariantCulture)];
         config.InputAmounts = [..config.InputAmounts, price];
         config.StockAmounts = [..config.StockAmounts, amount];
 
