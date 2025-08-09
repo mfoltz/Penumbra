@@ -3,6 +3,7 @@ using Stunlock.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using VampireCommandFramework;
+using System.Globalization;
 using static Penumbra.Services.MerchantService;
 
 namespace Penumbra.Commands;
@@ -37,7 +38,7 @@ internal static class MerchantCommands
         MerchantWares merchantWares = GetMerchantWares(index);
         SpawnMerchant(merchantPrefabGuid, entityInput.AimPosition, merchantWares);
         ctx.Reply($"Spawned merchant: <color=white>{merchantPrefabGuid.GetPrefabName()}</color> " +
-            $"[<color=yellow>{(int)aimPosition.x}, {(int)aimPosition.y}, {(int)aimPosition.z}</color>] " +
+            $"[<color=yellow>{((int)aimPosition.x).ToString(CultureInfo.InvariantCulture)}, {((int)aimPosition.y).ToString(CultureInfo.InvariantCulture)}, {((int)aimPosition.z).ToString(CultureInfo.InvariantCulture)}</color>] " +
             $"(<color=#00FFFF>{wares}</color>)");
     }
 
