@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
 using ProjectM;
 using Stunlock.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using VampireCommandFramework;
-using System.Globalization;
 using static Penumbra.Services.MerchantService;
 
 namespace Penumbra.Commands;
@@ -11,20 +13,30 @@ namespace Penumbra.Commands;
 [CommandGroup(name: "penumbra", "pen")]
 internal static class MerchantCommands
 {
+    static readonly Random Random = new();
+    static List<PrefabGUID>? traderPrefabs;
     static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
 
-    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true, usage: ".pen sm [TraderPrefab] [Wares]", description: "Spawns merchant at mouse location with configured wares ('.pen sm 1631713257 3' will spawn a major noctem trader with the third wares as configured).")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader, int wares)
+    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true,
+        usage: ".pen sm [Wares] [TraderPrefab?]",
+        description: "Spawns merchant at mouse location with configured wares (provide wares only to use a random trader or '.pen sm 1631713257 3' to spawn a major noctem trader with the third wares as configured).")]
+    public static void SpawnMerchantCommand(ChatCommandContext ctx, int? traderPrefabId = null, int? wares = null)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
         EntityInput entityInput = character.Read<EntityInput>();
 
         float3 aimPosition = entityInput.AimPosition;
-        PrefabGUID merchantPrefabGuid = new(trader);
+        int? resolvedTraderPrefabId = traderPrefabId;
 
-        if (!PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(merchantPrefabGuid, out Entity prefab) || !prefab.IsTrader())
+        if (wares is null && traderPrefabId is not null)
         {
-            ctx.Reply("Invalid trader prefabGuid!");
+            wares = traderPrefabId;
+            resolvedTraderPrefabId = null;
+        }
+
+        if (wares is null)
+        {
+            ctx.Reply("Missing wares index!");
             return;
         }
 
@@ -34,10 +46,26 @@ internal static class MerchantCommands
             return;
         }
 
+        PrefabGUID? merchantPrefabGuid = resolvedTraderPrefabId is null
+            ? GetRandomTraderPrefabGuid()
+            : new PrefabGUID(resolvedTraderPrefabId.Value);
+
+        if (merchantPrefabGuid is null)
+        {
+            ctx.Reply("No trader prefabs available to spawn!");
+            return;
+        }
+
+        if (!PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(merchantPrefabGuid.Value, out Entity prefab) || !prefab.IsTrader())
+        {
+            ctx.Reply("Invalid trader prefabGuid!");
+            return;
+        }
+
         int index = wares - 1;
         MerchantWares merchantWares = GetMerchantWares(index);
-        SpawnMerchant(merchantPrefabGuid, entityInput.AimPosition, merchantWares);
-        ctx.Reply($"Spawned merchant: <color=white>{merchantPrefabGuid.GetPrefabName()}</color> " +
+        SpawnMerchant(merchantPrefabGuid.Value, entityInput.AimPosition, merchantWares);
+        ctx.Reply($"Spawned merchant: <color=white>{merchantPrefabGuid.Value.GetPrefabName()}</color> " +
             $"[<color=yellow>{((int)aimPosition.x).ToString(CultureInfo.InvariantCulture)}, {((int)aimPosition.y).ToString(CultureInfo.InvariantCulture)}, {((int)aimPosition.z).ToString(CultureInfo.InvariantCulture)}</color>] " +
             $"(<color=#00FFFF>{wares}</color>)");
     }
@@ -90,5 +118,33 @@ internal static class MerchantCommands
 
         AddMerchantItem(index, itemGuid, price, amount);
         ctx.Reply($"Updated merchant {merchant} with item {itemGuid.GetPrefabName()}.");
+    }
+
+    static PrefabGUID? GetRandomTraderPrefabGuid()
+    {
+        List<PrefabGUID>? cachedPrefabs = traderPrefabs;
+
+        if (cachedPrefabs == null || cachedPrefabs.Count == 0)
+        {
+            cachedPrefabs = new List<PrefabGUID>();
+
+            foreach (KeyValuePair<PrefabGUID, Entity> prefabPair in PrefabCollectionSystem._PrefabGuidToEntityMap)
+            {
+                if (prefabPair.Value.IsTrader())
+                {
+                    cachedPrefabs.Add(prefabPair.Key);
+                }
+            }
+
+            traderPrefabs = cachedPrefabs;
+        }
+
+        if (cachedPrefabs.Count == 0)
+        {
+            return null;
+        }
+
+        int index = Random.Next(cachedPrefabs.Count);
+        return cachedPrefabs[index];
     }
 }

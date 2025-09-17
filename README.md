@@ -53,9 +53,9 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra getdaily`
   - Check time remaining or receive daily login reward if eligible.
   - Shortcut: *.pen gd*
-- `.penumbra spawnmerchant [TraderPrefab] [Wares]` 🔒
-  - Spawns merchant at mouse location with configured wares ('.pen sm 1631713257 3' will spawn a major noctem trader with the third wares as configured).
-  - Shortcut: *.pen sm [TraderPrefab] [Wares]*
+  - `.penumbra spawnmerchant [Wares] [TraderPrefab?]` 🔒 – If the trader prefab is omitted a random trader will be chosen.
+    - Spawns merchant at mouse location with configured wares ('.pen sm 1631713257 3' will spawn a major noctem trader with the third wares as configured).
+    - Shortcut: *.pen sm [Wares] [TraderPrefab?]*
 - `.penumbra removemerchant` 🔒
   - Removes hovered merchant.
   - Shortcut: *.pen rm*
