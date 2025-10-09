@@ -20,7 +20,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0        
+          fetch-depth: 0
+          ref: ${{ github.ref }}
         
       - name: Restore dependencies
         run: dotnet restore
@@ -62,7 +63,7 @@ jobs:
           if [ -n "$(git status --porcelain thunderstore.toml)" ]; then
             git add thunderstore.toml
             git commit -m "chore: Update thunderstore.toml version to ${{ env.version }}"
-            git push
+            git push origin HEAD:${{ github.ref }}
           else
             echo "No changes to commit in thunderstore.toml"
           fi
