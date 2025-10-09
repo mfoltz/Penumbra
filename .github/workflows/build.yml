@@ -119,18 +119,18 @@ jobs:
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
         run: dotnet build . --configuration Release -p:Version=${{ env.version }} -p:RunGenerateREADME=false
 
-      - name: GH Release
+      - name: GH Release (pre-release)
         uses: softprops/action-gh-release@v1
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
         with:
           body: |
-            Automated release for version ${{ env.version }} generated from GitHub Actions build.
+            Automated pre-release for version ${{ env.version }} generated from this GitHub Actions build.
             - Commit: ${{ github.sha }}
             - Run: ${{ github.run_id }}
-          name: v${{ env.version }}
+          name: Pre-release v${{ env.version }}
           fail_on_unmatched_files: true
-          prerelease: false
-          tag_name: v${{ env.version }}
+          prerelease: true
+          tag_name: v${{ env.version }}-pre
           files: |
             ./bin/Release/net6.0/${{ steps.get_dll_name.outputs.dll_name }}.dll
             CHANGELOG.md
