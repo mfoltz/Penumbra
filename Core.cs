@@ -43,7 +43,10 @@ internal static class Core
         NetworkIdSystem = ServerScriptMapper.GetSingleton<NetworkIdSystem.Singleton>();
 
         InitializePrefabGuidNames();
-        if (_tokensConfig.TokenSystem || _tokensConfig.DailyLogin) TokenService.Initialize();
+
+        if (_tokensConfig.TokenSystem || _tokensConfig.DailyLogin)
+            TokenService.Initialize();
+
         _ = new LocalizationService();
         _ = new MerchantService();
 

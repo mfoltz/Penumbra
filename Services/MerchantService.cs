@@ -25,10 +25,11 @@ internal class MerchantService
     const float TIME_CONSTANT = 60f;
     const float SPAWN_DELAY = 0.25f;
     const float ROUTINE_DELAY = 15f;
+    const string COIN = "Coin";
 
     static readonly WaitForSeconds _spawnDelay = new(SPAWN_DELAY);
     static readonly WaitForSeconds _routineDelay = new(ROUTINE_DELAY);
-
+    static PrefabGUID CoinStation { get; } = PrefabGUIDs.TM_RefinementStation_Fabricator;
     static readonly PrefabGUID _infiniteInvulnerabilityBuff = PrefabGUIDs.InfiniteInvulnerabilityBuff;
     static readonly PrefabGUID _buffResistanceUberMob = PrefabGUIDs.BuffResistance_UberMob_IgniteResistant;
     static readonly PrefabGUID _ignoredFaction = PrefabGUIDs.Faction_Ignored;
@@ -36,18 +37,26 @@ internal class MerchantService
     static readonly ComponentType[] _merchantComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<Trader>()),
-        ComponentType.ReadOnly(Il2CppType.Of<Immortal>()),
-        // ComponentType.ReadOnly(Il2CppType.Of<NameableInteractable>()),
+        ComponentType.ReadOnly(Il2CppType.Of<Immortal>())
     ];
 
+    static readonly ComponentType[] _stationComponents =
+    [
+        ComponentType.ReadOnly(Il2CppType.Of<RefinementstationRecipesBuffer>()),
+        ComponentType.ReadOnly(Il2CppType.Of<PrefabGUID>())
+    ];
+
+    /*
     static readonly ComponentType[] _globalPatrolComponents =
     [
         ComponentType.ReadOnly(Il2CppType.Of<GlobalPatrolState>()),
         ComponentType.ReadOnly(Il2CppType.Of<MovePatrolState>()),
         ComponentType.ReadOnly(Il2CppType.Of<VBloodUnitSpawnSource>())
     ];
+    */
 
     static EntityQuery _merchantQuery;
+    static EntityQuery _stationQuery;
 
     // static EntityQuery _globalPatrolQuery;
     // static Entity _globalPatrol;
@@ -66,23 +75,30 @@ internal class MerchantService
         public PrefabGUID TraderPrefab;
         public float3 Position;
     }
+    public static IReadOnlyDictionary<Entity, MerchantWares> ActiveMerchants
+        => _activeMerchants;
+    public static MerchantWares GetMerchantWares(int index)
+        => _merchantWares[index];
 
     static readonly ConcurrentDictionary<Entity, MerchantWares> _activeMerchants = [];
-    public static IReadOnlyDictionary<Entity, MerchantWares> ActiveMerchants => _activeMerchants;
-
     static readonly List<MerchantWares> _merchantWares = [];
-    public static MerchantWares GetMerchantWares(int index) => _merchantWares[index];
+    public static int GetMerchantWares(string identifier)
+    {
+        foreach (var merchant in Merchants)
+        {
+            if (merchant.Name.Equals(identifier, StringComparison.OrdinalIgnoreCase))
+            {
+                return Merchants.IndexOf(merchant);
+            }
+        }
+
+        return -1;
+    }
+    static bool TokenEconomy { get; } = _tokensConfig.TokenEconomy; // sweep & remove coin recipes from fabricators + prefab <-> sweep & add to fabricators if missing
     public MerchantService()
     {
         _merchantQuery = EntityManager.BuildEntityQuery(_merchantComponents, options: EntityQueryOptions.IncludeDisabled);
-
-        /*
-        _globalPatrolQuery = EntityManager.CreateEntityQuery(new EntityQueryDesc
-        {
-            All = _globalPatrolComponents,
-            Options = EntityQueryOptions.IncludeDisabled
-        });
-        */
+        _stationQuery = EntityManager.BuildEntityQuery(_stationComponents, options: EntityQueryOptions.IncludeDisabled);
 
         try
         {
@@ -90,6 +106,22 @@ internal class MerchantService
             GetActiveMerchants();
             AutoSpawnMerchants();
             RestockMerchantsRoutine().Start();
+        }
+        catch (Exception ex)
+        {
+            Core.Log.LogError(ex);
+        }
+
+        try
+        {
+            if (TokenEconomy)
+            {
+                RemoveCoinRecipes();
+            }
+            else
+            {
+                AddCoinRecipes();
+            }
         }
         catch (Exception ex)
         {
@@ -165,39 +197,32 @@ internal class MerchantService
         ModifyMerchant(merchant, aimPosition, wares).Start();
         Instance.UpdateMerchantDefinition(wares.MerchantIndex, traderPrefabGuid.GuidHash, aimPosition);
     }
+    public static bool TryRemoveMerchant(Entity merchant)
+    {
+        if (_activeMerchants.TryRemove(merchant, out MerchantWares merchantWares))
+        {
+            Instance.ClearMerchantPosition(merchantWares.MerchantIndex);
+            merchant.Destroy();
+            return true;
+        }
+
+        return false;
+    }
     static void ApplyOrRefreshModifications(Entity merchant, MerchantWares wares)
     {
         if (merchant.Exists())
         {
-            merchant.AddWith((ref EntityOwner entityOwner) =>
-            {
-                entityOwner.Owner = merchant;
-            });
+            merchant.AddWith((ref EntityOwner entityOwner) => entityOwner.Owner = merchant);
 
-            merchant.AddWith((ref Buffable buffable) =>
-            {
-                buffable.KnockbackResistanceIndex._Value = 11;
-            });
+            merchant.AddWith((ref Buffable buffable) => buffable.KnockbackResistanceIndex._Value = 11);
 
-            merchant.AddWith((ref BuffResistances buffResistances) =>
-            {
-                buffResistances.InitialSettingGuid = _buffResistanceUberMob;
-            });
+            merchant.AddWith((ref BuffResistances buffResistances) => buffResistances.InitialSettingGuid = _buffResistanceUberMob);
 
-            merchant.AddWith((ref Immortal immortal) =>
-            {
-                immortal.IsImmortal = true;
-            });
+            merchant.AddWith((ref Immortal immortal) => immortal.IsImmortal = true);
 
-            merchant.AddWith((ref NameableInteractable nameableInteractable) =>
-            {
-                nameableInteractable.Name = new(wares.Name);
-            });
+            merchant.AddWith((ref NameableInteractable nameableInteractable) => nameableInteractable.Name = new(wares.Name));
 
-            merchant.With((ref DynamicCollision dynamicCollision) =>
-            {
-                dynamicCollision.Immobile = true;
-            });
+            merchant.With((ref DynamicCollision dynamicCollision) => dynamicCollision.Immobile = true);
 
             MakeImperviousAndIgnored(merchant, wares.Roam);
 
@@ -232,11 +257,7 @@ internal class MerchantService
                 });
             }
 
-            buffEntity.AddWith((ref Script_Buff_ModifyFaction_DataServer modifyFaction) =>
-            {
-                modifyFaction.Faction = _ignoredFaction;
-            });
-
+            buffEntity.AddWith((ref Script_Buff_ModifyFaction_DataServer modifyFaction) => modifyFaction.Faction = _ignoredFaction);
             buffEntity.Add<ScriptSpawn>();
         }
     }
@@ -255,15 +276,9 @@ internal class MerchantService
             unitStats.FireResistance._Value = wares.MerchantIndex;
         });
 
-        merchant.AddWith((ref Immortal immortal) =>
-        {
-            immortal.IsImmortal = true;
-        });
+        merchant.AddWith((ref Immortal immortal) => immortal.IsImmortal = true);
 
-        merchant.With((ref DynamicCollision dynamicCollision) =>
-        {
-            dynamicCollision.Immobile = true;
-        });
+        merchant.With((ref DynamicCollision dynamicCollision) => dynamicCollision.Immobile = true);
 
         _activeMerchants.TryAdd(merchant, wares);
 
@@ -343,15 +358,107 @@ internal class MerchantService
 
         if (!trader.RestockTime.Equals(restockTime))
         {
-            merchant.With((ref Trader trader) =>
-            {
-                trader.RestockTime = restockTime;
-            });
+            merchant.With((ref Trader trader) => trader.RestockTime = restockTime);
         }
 
         if (now > trader.NextRestockTime || delta > restockTime)
         {
             UpdateMerchantStock(merchant, merchantWares, DateTime.UtcNow);
+        }
+    }
+    static void RemoveCoinRecipes()
+    {
+        Entity stationPrefab = ServerGameManager.GetPrefabEntity(CoinStation);
+
+        if (stationPrefab.TryGetBuffer<RefinementstationRecipesBuffer>(out var stationBuffer))
+        {
+            for (int j = stationBuffer.Length - 1; j >= 0; j--)
+            {
+                RefinementstationRecipesBuffer recipesBuffer = stationBuffer[j];
+
+                if (recipesBuffer.RecipeGuid.GetPrefabName().Contains(COIN))
+                {
+                    stationBuffer.RemoveAt(j);
+                    Core.Log.LogWarning($"[MerchantService] Removed recipe {recipesBuffer.RecipeGuid.GetPrefabName()} from station prefab {stationPrefab.GetPrefabGuid().GetPrefabName()}!");
+                }
+            }
+        }
+        else
+        {
+            Core.Log.LogWarning($"[MerchantService] Couldn't get recipe buffer from station prefab {stationPrefab.GetPrefabGuid().GetPrefabName()}!");
+            return;
+        }
+
+        var entities = _stationQuery.ToEntityArrayAccessor();
+        var prefabGuids = _stationQuery.ToComponentDataArrayAccessor<PrefabGUID>();
+        Core.Log.LogWarning($"[MerchantService] Found {entities.Length} coin stations!");
+
+        try
+        {
+            for (int i = 0; i < entities.Length; i++)
+            {
+                Entity entity = entities[i];
+                PrefabGUID prefabGuid = prefabGuids[i];
+
+                if (prefabGuid.Equals(CoinStation)
+                    && entity.TryGetBuffer<RefinementstationRecipesBuffer>(out var buffer))
+                {
+                    for (int j = buffer.Length - 1; j >= 0; j--)
+                    {
+                        RefinementstationRecipesBuffer recipesBuffer = buffer[j];
+
+                        if (recipesBuffer.RecipeGuid.GetPrefabName().Contains(COIN))
+                        {
+                            buffer.RemoveAt(j);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Core.Log.LogError(ex);
+        }
+    }
+    static void AddCoinRecipes()
+    {
+        var entities = _stationQuery.ToEntityArrayAccessor();
+        var prefabGuids = _stationQuery.ToComponentDataArrayAccessor<PrefabGUID>();
+        Core.Log.LogWarning($"[MerchantService] Found {entities.Length} coin stations!");
+
+        try
+        {
+            for (int i = 0; i < entities.Length; i++)
+            {
+                Entity entity = entities[i];
+                PrefabGUID prefabGuid = prefabGuids[i];
+
+                if (prefabGuid.Equals(CoinStation)
+                    && entity.TryGetBuffer<RefinementstationRecipesBuffer>(out var buffer))
+                {
+                    bool isMinted = false;
+
+                    foreach (var recipesBuffer in buffer)
+                    {
+                        if (recipesBuffer.RecipeGuid.GetPrefabName().Contains(COIN))
+                        {
+                            isMinted = true;
+                            break;
+                        }
+                    }
+
+                    if (!isMinted)
+                    {
+                        buffer.Add(new RefinementstationRecipesBuffer { RecipeGuid = PrefabGUIDs.Recipe_Ingredient_Coin_Copper, Unlocked = true, Disabled = false });
+                        buffer.Add(new RefinementstationRecipesBuffer { RecipeGuid = PrefabGUIDs.Recipe_Ingredient_Coin_Silver, Unlocked = true, Disabled = false });
+                        buffer.Add(new RefinementstationRecipesBuffer { RecipeGuid = PrefabGUIDs.Recipe_Ingredient_Coin_Royal, Unlocked = true, Disabled = false });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Core.Log.LogError(ex);
         }
     }
     static void GetActiveMerchants()
@@ -377,7 +484,7 @@ internal class MerchantService
 
                     if (wares < 0 || wares >= _merchantWares.Count)
                     {
-                        // Core.Log.LogWarning($"Invalid wares index ({wares}) for Penumbra merchant, skipping! (did you remove a set of wares for an active merchant?)");
+                        Core.Log.LogWarning($"Invalid wares index ({wares}) for Penumbra merchant, skipping! (did you remove wares in config for an existing merchant?)");
                         continue;
                     }
 
@@ -445,106 +552,101 @@ internal class MerchantService
 
             if (!found)
             {
-                Core.Log.LogInfo($"[MerchantService] Auto-spawning merchant " +
-                                 $"#{i + 1} ({wares.TraderPrefab.GetPrefabName()}) at {wares.Position}");
+                Core.Log.LogInfo($"[MerchantService] Auto-spawning merchant ({i + 1}) ({wares.TraderPrefab.GetPrefabName()}) at {wares.Position}");
                 SpawnMerchant(wares.TraderPrefab, wares.Position, wares);
             }
         }
     }
+}
 
-    /*
-    public static void SpawnGlobalPatrol(Entity merchant)
+/*
+public static void SpawnGlobalPatrol(Entity merchant)
+{
+    if (_globalPatrol.Exists())
     {
-        if (_globalPatrol.Exists())
-        {
-            try
-            {
-                Entity globalPatrol = EntityManager.Instantiate(_globalPatrol);
-                ModifyGlobalPatrol(globalPatrol, merchant);
-            }
-            catch (Exception ex)
-            {
-                Core.Log.LogError(ex);
-            }
-            finally
-            {
-                Core.Log.LogWarning("Global patrol entity spawned and linked to merchant!");
-            }
-        }
-        else
-        {
-            Core.Log.LogWarning("Global patrol entity not found!");
-        }
-    }
-    */
-
-    /*
-    static void ModifyGlobalPatrol(Entity globalPatrol, Entity merchant)
-    {
-        globalPatrol.TryRemove<UnitCompositionSpawner>();
-        globalPatrol.TryRemove<VBloodUnitSpawnSource>();
-        globalPatrol.TryRemove<UnitCompositionActiveUnit>();
-        globalPatrol.TryRemove<FormationOffsetBuffer>();
-        globalPatrol.TryRemove<UnitCompositionGroupEntry>();
-        globalPatrol.TryRemove<UnitCompositionGroupUnitEntry>();
-
-        globalPatrol.With((ref GlobalPatrolState globalPatrolState) =>
-        {
-            globalPatrolState.Direction = GlobalPatrolDirection.Forward;
-            globalPatrolState.PatrolType = GlobalPatrolType.Roaming;
-        });
-
-        globalPatrol.With((ref Translation translation) =>
-        {
-            translation.Value = merchant.GetPosition();
-        });
-
-        if (globalPatrol.TryGetBuffer<FollowerBuffer>(out var buffer))
-        {
-            merchant.AddWith((ref Follower follower) =>
-            {
-                follower.Followed._Value = globalPatrol;
-            });
-
-            buffer.Clear();
-            buffer.Add(new FollowerBuffer { Entity = NetworkedEntity.ServerEntity(merchant) });
-        }
-    }
-    */
-
-    /*
-    static void GetGlobalPatrol()
-    {
-        NativeArray<ArchetypeChunk> archetypeChunks = _globalPatrolQuery.CreateArchetypeChunkArray(Allocator.Temp);
-        int count = 0;
-
         try
         {
-            foreach (ArchetypeChunk archetypeChunk in archetypeChunks)
-            {
-                NativeArray<Entity> entities = archetypeChunk.GetNativeArray(EntityTypeHandle);
-
-                for (int i = 0; i < archetypeChunk.Count; i++)
-                {
-                    Entity entity = entities[i];
-                    if (!EntityStorageInfoLookup.Exists(entity)) continue;
-                    
-                    if (entity.TryGetBuffer<UnitCompositionGroupUnitEntry>(out var buffer) && !buffer.IsEmpty)
-                    {
-                        UnitCompositionGroupUnitEntry unitCompositionGroupUnitEntry = buffer[0];
-                        if (unitCompositionGroupUnitEntry.Unit.Equals(Prefabs.CHAR_VHunter_CastleMan)) _globalPatrol = entity;
-                    }
-
-                    // Core.LogEntity(Core.Server, entity);
-                    count++;
-                }
-            }
+            Entity globalPatrol = EntityManager.Instantiate(_globalPatrol);
+            ModifyGlobalPatrol(globalPatrol, merchant);
+        }
+        catch (Exception ex)
+        {
+            Core.Log.LogError(ex);
         }
         finally
         {
-            archetypeChunks.Dispose();
-            // Core.Log.LogWarning($"Found {count} global patrol entities!");
+            Core.Log.LogWarning("Global patrol entity spawned and linked to merchant!");
         }
     }
-    */
+    else
+    {
+        Core.Log.LogWarning("Global patrol entity not found!");
+    }
 }
+
+static void ModifyGlobalPatrol(Entity globalPatrol, Entity merchant)
+{
+    globalPatrol.TryRemove<UnitCompositionSpawner>();
+    globalPatrol.TryRemove<VBloodUnitSpawnSource>();
+    globalPatrol.TryRemove<UnitCompositionActiveUnit>();
+    globalPatrol.TryRemove<FormationOffsetBuffer>();
+    globalPatrol.TryRemove<UnitCompositionGroupEntry>();
+    globalPatrol.TryRemove<UnitCompositionGroupUnitEntry>();
+
+    globalPatrol.With((ref GlobalPatrolState globalPatrolState) =>
+    {
+        globalPatrolState.Direction = GlobalPatrolDirection.Forward;
+        globalPatrolState.PatrolType = GlobalPatrolType.Roaming;
+    });
+
+    globalPatrol.With((ref Translation translation) =>
+    {
+        translation.Value = merchant.GetPosition();
+    });
+
+    if (globalPatrol.TryGetBuffer<FollowerBuffer>(out var buffer))
+    {
+        merchant.AddWith((ref Follower follower) =>
+        {
+            follower.Followed._Value = globalPatrol;
+        });
+
+        buffer.Clear();
+        buffer.Add(new FollowerBuffer { Entity = NetworkedEntity.ServerEntity(merchant) });
+    }
+}
+
+static void GetGlobalPatrol()
+{
+    NativeArray<ArchetypeChunk> archetypeChunks = _globalPatrolQuery.CreateArchetypeChunkArray(Allocator.Temp);
+    int count = 0;
+
+    try
+    {
+        foreach (ArchetypeChunk archetypeChunk in archetypeChunks)
+        {
+            NativeArray<Entity> entities = archetypeChunk.GetNativeArray(EntityTypeHandle);
+
+            for (int i = 0; i < archetypeChunk.Count; i++)
+            {
+                Entity entity = entities[i];
+                if (!EntityStorageInfoLookup.Exists(entity)) continue;
+
+                if (entity.TryGetBuffer<UnitCompositionGroupUnitEntry>(out var buffer) && !buffer.IsEmpty)
+                {
+                    UnitCompositionGroupUnitEntry unitCompositionGroupUnitEntry = buffer[0];
+                    if (unitCompositionGroupUnitEntry.Unit.Equals(Prefabs.CHAR_VHunter_CastleMan)) _globalPatrol = entity;
+                }
+
+                // Core.LogEntity(Core.Server, entity);
+                count++;
+            }
+        }
+    }
+    finally
+    {
+        archetypeChunks.Dispose();
+        // Core.Log.LogWarning($"Found {count} global patrol entities!");
+    }
+}
+*/

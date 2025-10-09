@@ -115,9 +115,21 @@ internal static class VExtensions
     {
         return EntityManager.HasComponent(entity, componentType);
     }
-    public static string GetPrefabName(this PrefabGUID prefabGuid)
+    public static bool IsTrue(this bool value)
     {
-        return PrefabGuidNames.TryGetValue(prefabGuid, out string prefabName) ? $"{prefabName} {prefabGuid}" : EMPTY_KEY;
+        return value.Equals(true);
+    }
+    public static bool IsFalse(this bool value)
+    {
+        return value.Equals(false);
+    }
+    public static string GetPrefabName(this PrefabGUID prefabGuid, bool nameOnly = false)
+    {
+        return PrefabGuidNames.TryGetValue(prefabGuid, out string prefabName)
+            ? nameOnly.IsTrue() // Did I make an extension just for this? Yup- *and I'll do it again*.
+                ? prefabName
+                : $"{prefabName} {prefabGuid}"
+            : EMPTY_KEY;
     }
     public static string GetLocalizedName(this PrefabGUID prefabGuid)
     {
@@ -149,21 +161,11 @@ internal static class VExtensions
     }
     public static bool IsTrader(this Entity entity)
     {
-        if (entity.Has<Trader>())
-        {
-            return true;
-        }
-
-        return false;
+        return entity.Has<Trader>();
     }
     public static bool IsMerchant(this Entity entity)
     {
-        if (entity.Has<Trader>() && entity.Has<Immortal>())
-        {
-            return true;
-        }
-
-        return false;
+        return entity.Has<Trader>() && entity.Has<Immortal>();
     }
     public static bool Exists(this Entity entity)
     {
@@ -298,6 +300,8 @@ internal static class VExtensions
             Core.Log.LogWarning($"Error dumping entity: {e.Message}");
         }
     }
+
+
     public static NativeAccessor<Entity> ToEntityArrayAccessor(this EntityQuery entityQuery, Allocator allocator = Allocator.Temp)
     {
         NativeArray<Entity> entities = entityQuery.ToEntityArray(allocator);
@@ -339,6 +343,23 @@ internal static class VExtensions
             builder.WithOptions(options.Value);
 
         return entityManager.CreateEntityQuery(ref builder);
+    }
+    public static PrefabGUID GetPrefabGuid(this Entity entity)
+    {
+        if (entity.TryGetComponent(out PrefabGUID prefabGuid))
+            return prefabGuid;
+
+        return PrefabGUID.Empty;
+    }
+    public static bool TryGetBuffer<T>(this Entity entity, out DynamicBuffer<T> dynamicBuffer) where T : struct
+    {
+        if (ServerGameManager.TryGetBuffer(entity, out dynamicBuffer))
+        {
+            return true;
+        }
+
+        dynamicBuffer = default;
+        return false;
     }
     public readonly struct NativeAccessor<T> : IDisposable where T : unmanaged
     {

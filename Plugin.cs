@@ -18,13 +18,13 @@ internal class Plugin : BasePlugin
     internal static Plugin Instance { get; set; }
     public static Harmony Harmony => Instance._harmony;
     public static ManualLogSource LogInstance => Instance.Log;
-    public static string TokensPath => _tokensPath;
-    static readonly string _tokensPath = Path.Combine(Paths.ConfigPath, MyPluginInfo.PLUGIN_NAME, $"player_tokens.json");
+    public static string TokensPath { get; } = Path.Combine(Paths.ConfigPath, MyPluginInfo.PLUGIN_NAME, "player_tokens.json");
 
     static readonly string _pluginPath = Path.Combine(Paths.ConfigPath, MyPluginInfo.PLUGIN_NAME);
     public class TokensConfig
     {
         public bool TokenSystem { get; }
+        public bool TokenEconomy { get; }
         public PrefabGUID TokenItem { get; }
         public int TokenRatio { get; }
         public int TokenRate { get; }
@@ -35,6 +35,7 @@ internal class Plugin : BasePlugin
         public TokensConfig()
         {
             TokenSystem = InitConfigEntry("Tokens", "EnableTokens", false, "Enable or disable token system.").Value;
+            TokenEconomy = InitConfigEntry("Tokens", "TokenEconomy", false, "Enable to lock coin recipes in stations.").Value;
             TokenItem = new(InitConfigEntry("Tokens", "TokenItemReward", 576389135, "Item prefab for currency reward.").Value);
             TokenRatio = InitConfigEntry("Tokens", "TokenItemRatio", 6, "Currency/reward factor.").Value;
             TokenRate = InitConfigEntry("Tokens", "TokensPerMinute", 5, "Tokens gained per minute online.").Value;
@@ -48,20 +49,60 @@ internal class Plugin : BasePlugin
     public static TokensConfig _tokensConfig;
     public class MerchantConfig
     {
-        public string Name;
-        public string[] OutputItems;
-        public int[] OutputAmounts;
-        public string[] InputItems;
-        public int[] InputAmounts;
-        public int[] StockAmounts;
-        public int RestockTime;
-        public int TraderPrefab;
-        public string Position;
-        public bool Roam;
-    }
+        const int MAX = 25;
 
-    static readonly List<MerchantConfig> _merchants = [];
-    public static List<MerchantConfig> Merchants => _merchants;
+        string[] _outputItems = [];
+        public string[] OutputItems
+        {
+            get => _outputItems;
+            set => _outputItems = Enforce(value);
+        }
+
+        int[] _outputAmounts = [];
+        public int[] OutputAmounts
+        {
+            get => _outputAmounts;
+            set => _outputAmounts = Enforce(value);
+        }
+
+        string[] _inputItems = [];
+        public string[] InputItems
+        {
+            get => _inputItems;
+            set => _inputItems = Enforce(value);
+        }
+
+        int[] _inputAmounts = [];
+        public int[] InputAmounts
+        {
+            get => _inputAmounts;
+            set => _inputAmounts = Enforce(value);
+        }
+
+        int[] _stockAmounts = [];
+        public int[] StockAmounts
+        {
+            get => _stockAmounts;
+            set => _stockAmounts = Enforce(value);
+        }
+
+        public string Name { get; set; } = "";
+        public int RestockTime { get; set; }
+        public int TraderPrefab { get; set; }
+        public string Position { get; set; } = "";
+        public bool Roam { get; set; }
+
+        static T[] Enforce<T>(T[] array)
+        {
+            array ??= [];
+
+            if (array.Length <= MAX)
+                return array;
+
+            return array.AsSpan(0, MAX).ToArray();
+        }
+    }
+    public static List<MerchantConfig> Merchants { get; } = [];
     public override void Load()
     {
         Instance = this;
@@ -87,7 +128,7 @@ internal class Plugin : BasePlugin
         LoadTokens();
         LoadMerchants();
 
-        if (_merchants.Count == 0)
+        if (Merchants.Count == 0)
         {
             CreateDefaultMerchants();
         }
@@ -133,10 +174,10 @@ internal class Plugin : BasePlugin
                 Position = Config.Bind(section, "Position", "", "Position of merchant spawn in world.").Value
             };
 
-            _merchants.Add(merchant);
+            Merchants.Add(merchant);
         }
 
-        LogInstance.LogWarning($"Loaded {_merchants.Count} merchants!");
+        LogInstance.LogWarning($"Loaded {Merchants.Count} merchants!");
     }
     static int[] ParseIntArray(string value)
     {
@@ -145,7 +186,7 @@ internal class Plugin : BasePlugin
     }
     static void CreateDefaultMerchants()
     {
-        _merchants.Add(new MerchantConfig
+        Merchants.Add(new MerchantConfig
         {
             Name = "MerchantOne",
             OutputItems =
@@ -187,7 +228,7 @@ internal class Plugin : BasePlugin
             Position = ""
         });
 
-        _merchants.Add(new MerchantConfig
+        Merchants.Add(new MerchantConfig
         {
             Name = "MerchantTwo",
             OutputItems =
@@ -219,7 +260,7 @@ internal class Plugin : BasePlugin
             Position = ""
         });
 
-        _merchants.Add(new MerchantConfig
+        Merchants.Add(new MerchantConfig
         {
             Name = "MerchantThree",
             OutputItems =
@@ -243,7 +284,7 @@ internal class Plugin : BasePlugin
             Position = ""
         });
 
-        _merchants.Add(new MerchantConfig
+        Merchants.Add(new MerchantConfig
         {
             Name = "MerchantFour",
             OutputItems =
@@ -272,7 +313,7 @@ internal class Plugin : BasePlugin
             Position = ""
         });
 
-        _merchants.Add(new MerchantConfig
+        Merchants.Add(new MerchantConfig
         {
             Name = "MerchantFive",
             OutputItems =
@@ -314,10 +355,10 @@ internal class Plugin : BasePlugin
             Config.Remove(new ConfigDefinition(key.Section, key.Key));
         }
 
-        for (int i = 0; i < _merchants.Count; i++)
+        for (int i = 0; i < Merchants.Count; i++)
         {
             string section = $"Merchant{i + 1}";
-            var merchant = _merchants[i];
+            var merchant = Merchants[i];
 
             Config.Bind(section, "Name", merchant.Name, "Name of merchant/wares.");
             Config.Bind(section, "OutputItems", string.Join(",", merchant.OutputItems), "Comma-separated item prefab IDs for output.");
@@ -331,14 +372,22 @@ internal class Plugin : BasePlugin
             Config.Bind(section, "Position", merchant.Position, "Position of merchant spawn in world.");
         }
     }
-    public void UpdateMerchantDefinition(int merchantIndex, int traderGuid, float3 position)
+    public void UpdateMerchantDefinition(int index, int traderGuid, float3 position)
     {
-        if (merchantIndex < 0 || merchantIndex >= _merchants.Count) return;
+        if (index < 0 || index >= Merchants.Count) return;
 
-        MerchantConfig merchantConfig = _merchants[merchantIndex];
-
+        MerchantConfig merchantConfig = Merchants[index];
         merchantConfig.TraderPrefab = traderGuid;
         merchantConfig.Position = $"{position.x},{position.y},{position.z}";
+
+        SaveMerchants();
+    }
+    public void ClearMerchantPosition(int index)
+    {
+        if (index < 0 || index >= Merchants.Count) return;
+
+        MerchantConfig merchantConfig = Merchants[index];
+        merchantConfig.Position = string.Empty;
 
         SaveMerchants();
     }
@@ -350,3 +399,19 @@ internal class Plugin : BasePlugin
         return true;
     }
 }
+
+/*
+public class MerchantConfig
+{
+    public string Name;
+    public string[] OutputItems;
+    public int[] OutputAmounts;
+    public string[] InputItems;
+    public int[] InputAmounts;
+    public int[] StockAmounts;
+    public int RestockTime;
+    public int TraderPrefab;
+    public string Position;
+    public bool Roam;
+}
+*/

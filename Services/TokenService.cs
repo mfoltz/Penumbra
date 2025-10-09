@@ -37,10 +37,11 @@ internal static class TokenService
     static bool _initialized = false;
     public static void Initialize()
     {
-        if (_initialized) return;
-        _initialized = true;
+        if (_initialized)
+            return;
 
         TokensRoutine().Start();
+        _initialized = true;
     }
     static IEnumerator TokensRoutine()
     {
@@ -51,7 +52,8 @@ internal static class TokenService
             foreach (var kvp in SteamIdPlayerInfoCache)
             {
                 var user = kvp.Value.User;
-                if (!user.IsConnected) continue;
+                if (!user.IsConnected)
+                    continue;
 
                 ulong steamId = user.PlatformId;
 
@@ -147,22 +149,6 @@ internal static class TokenService
             TimeData = timeBlob;
         }
     }
-
-    /*
-    [Serializable]
-    public struct TimeBlob(DateTime tokenTime, DateTime dailyLogin)
-    {
-        public DateTime TokenTime = tokenTime;  
-        public DateTime LoginTime = dailyLogin;
-    }
-
-    [Serializable]
-    public struct TokenBlob(int tokens, TimeBlob timeBlob)
-    {
-        public int Tokens = tokens;
-        public TimeBlob TimeData = timeBlob;
-    }
-    */
     public static IReadOnlyDictionary<ulong, TokenBlob> PlayerTokens => _playerTokens;
     static ConcurrentDictionary<ulong, TokenBlob> _playerTokens = [];
     public static TokenBlob AccumulateTime(TokenBlob tokenData)
@@ -187,48 +173,32 @@ internal static class TokenService
     }
     public static bool TryGiveDaily(ulong steamId, User user, Entity characterEntity)
     {
-        if (!characterEntity.Exists()) return false;
-        if (!PlayerTokens.TryGetValue(steamId, out var tokenData) || !IsEligibleForDaily(tokenData)) return false;
+        if (!characterEntity.Exists())
+            return false;
+
+        if (!PlayerTokens.TryGetValue(steamId, out var tokenData)
+            || !IsEligibleForDaily(tokenData))
+        {
+            return false;
+        }
 
         string itemName = _dailyItem.GetLocalizedName();
         string msg = $"You've received <color=#00FFFF>{itemName}</color>x<color=white>{_dailyQuantity}</color> for logging in today!";
         bool placed = ServerGameManager.TryAddInventoryItem(characterEntity, _dailyItem, _dailyQuantity);
 
-        FixedString512Bytes chat =
-            placed ? new FixedString512Bytes(msg)
-                   : new FixedString512Bytes($"{msg} It dropped on the ground because your inventory was full.");
+        FixedString512Bytes message = placed
+            ? new FixedString512Bytes(msg)
+            : new FixedString512Bytes($"{msg} It dropped on the ground because your inventory was full.");
 
         if (!placed)
             InventoryUtilitiesServer.CreateDropItem(EntityManager, characterEntity, _dailyItem, _dailyQuantity, Entity.Null);
 
-        ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref chat);
+        ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref message);
 
         tokenData.TimeData = new TimeBlob(tokenData.TimeData.TokenTime, DateTime.UtcNow);
         steamId.UpdateAndSaveTokens(tokenData);
         return true;
     }
-
-    /*
-    public static void TryGiveDaily(User user, Entity characterEntity)
-    {
-        if (!characterEntity.Exists()) return;
-
-        string itemName = _dailyItem.GetLocalizedName();
-        string message = $"You've received <color=#00FFFF>{itemName}</color>x<color=white>{_dailyQuantity}</color> for logging in today!";
-
-        if (ServerGameManager.TryAddInventoryItem(characterEntity, _dailyItem, _dailyQuantity))
-        {
-            FixedString512Bytes fixedMessage = new(message);
-            ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref fixedMessage);
-        }
-        else
-        {
-            FixedString512Bytes fixedMessage = new($"{message} It dropped on the ground because your inventory was full.");
-            InventoryUtilitiesServer.CreateDropItem(EntityManager, characterEntity, _dailyItem, _dailyQuantity, new Entity());
-            ServerChatUtils.SendSystemMessageToClient(EntityManager, user, ref fixedMessage);
-        }
-    }
-    */
     public static void UpdateAndSaveTokens(this ulong steamId, TokenBlob tokenBlob)
     {
         _playerTokens[steamId] = tokenBlob;
@@ -242,11 +212,13 @@ internal static class TokenService
     {
         DateTime now = DateTime.UtcNow;
         TokenBlob tokenBlob = new(0, new TimeBlob(now, now.AddDays(-1)));
+
         UpdateAndSaveTokens(steamId, tokenBlob);
     }
     public static void LoadTokens()
     {
-        if (!File.Exists(TokensPath)) return;
+        if (!File.Exists(TokensPath))
+            return;
 
         _playerTokens = JsonSerializer.Deserialize<ConcurrentDictionary<ulong, TokenBlob>>
                        (File.ReadAllText(TokensPath)) ?? [];

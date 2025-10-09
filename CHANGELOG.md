@@ -1,3 +1,9 @@
+`1.2.8`
+- Added config option (`Token Economy`; can be used without the `Token System`) to remove coin recipes when enabled; recipes are added back on world load when disabled where applicable.
+- Spawn command no longer takes trader prefabs directly (e.g., `.pen sm 1`), defaulting to major noctem trader; other traders may still be used via config.
+- Merchant positions now cleared in config when removed; apologies for the oversight, this should prevent unwanted autospawns.
+- 25 max stock entries per merchant; extras are trimmed (more than 25 results in merchant interface issues, per user reports).
+
 `1.1.7`
 - fixed json deserialization for tokens/login data
 

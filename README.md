@@ -44,9 +44,9 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
   Pace around or stay put.
 
 ## Commands
-- `.penumbra spawnmerchant [TraderPrefab] [Wares]` 🔒
-  - Spawns merchant at mouse location with configured wares ('.pen sm 1631713257 3' will spawn a major noctem trader with the third wares as configured).
-  - Shortcut: *.pen sm [TraderPrefab] [Wares]*
+- `.penumbra spawnmerchant [#]` 🔒
+  - Spawns merchant as configured at mouse; defaults to major noctem trader (can set per merchant in config).
+  - Shortcut: *.pen sm [#]*
 - `.penumbra removemerchant` 🔒
   - Removes hovered merchant.
   - Shortcut: *.pen rm*

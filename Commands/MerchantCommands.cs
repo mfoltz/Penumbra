@@ -1,3 +1,5 @@
+using Penumbra.Resources;
+using Penumbra.Services;
 using ProjectM;
 using Stunlock.Core;
 using Unity.Entities;
@@ -12,33 +14,35 @@ internal static class MerchantCommands
 {
     static PrefabCollectionSystem PrefabCollectionSystem => Core.PrefabCollectionSystem;
 
-    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true, usage: ".pen sm [TraderPrefab] [Wares]", description: "Spawns merchant at mouse location with configured wares ('.pen sm 1631713257 3' will spawn a major noctem trader with the third wares as configured).")]
-    public static void SpawnMerchantCommand(ChatCommandContext ctx, int trader, int wares)
+    [Command(name: "spawnmerchant", shortHand: "sm", adminOnly: true, usage: ".pen sm [#]", description: "Spawns merchant as configured at mouse; defaults to major noctem trader (can set per merchant in config).")]
+    public static void SpawnMerchantCommand(ChatCommandContext ctx, int wares)
     {
         Entity character = ctx.Event.SenderCharacterEntity;
-        EntityInput entityInput = character.Read<EntityInput>();
+        EntityInput input = character.Read<EntityInput>();
+        float3 aimPosition = input.AimPosition;
 
-        float3 aimPosition = entityInput.AimPosition;
-        PrefabGUID merchantPrefabGuid = new(trader);
+        if (wares < 1 || wares > Plugin.Merchants.Count)
+        {
+            ctx.Reply($"Wares index out of range! (<color=white>{1}</color>-<color=white>{Plugin.Merchants.Count}</color>)");
+            return;
+        }
 
-        if (!PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(merchantPrefabGuid, out Entity prefab) || !prefab.IsTrader())
+        MerchantWares merchantWares = GetMerchantWares(--wares);
+        PrefabGUID merchantPrefabGuid = merchantWares.TraderPrefab.HasValue()
+            ? merchantWares.TraderPrefab
+            : PrefabGUIDs.CHAR_Trader_Noctem_Major;
+
+        if (!PrefabCollectionSystem._PrefabGuidToEntityMap.TryGetValue(merchantPrefabGuid, out Entity prefab)
+            || !prefab.IsTrader())
         {
             ctx.Reply("Invalid trader prefabGuid!");
             return;
         }
 
-        if (wares < 1 || wares > Plugin.Merchants.Count)
-        {
-            ctx.Reply($"Wares input out of range! (<color=white>{1}</color>-<color=white>{Plugin.Merchants.Count}</color>)");
-            return;
-        }
-
-        int index = wares - 1;
-        MerchantWares merchantWares = GetMerchantWares(index);
-        SpawnMerchant(merchantPrefabGuid, entityInput.AimPosition, merchantWares);
-        ctx.Reply($"Spawned merchant: <color=white>{merchantPrefabGuid.GetPrefabName()}</color> " +
+        SpawnMerchant(merchantPrefabGuid, input.AimPosition, merchantWares);
+        ctx.Reply($"[<color=white>{merchantPrefabGuid.GetPrefabName(true)}</color>] " +
             $"[<color=yellow>{(int)aimPosition.x}, {(int)aimPosition.y}, {(int)aimPosition.z}</color>] " +
-            $"(<color=#00FFFF>{wares}</color>)");
+            $"[<color=#00FFFF>{merchantWares.Name}</color><color=#b0b>|</color><color=green>{++wares}</color>]");
     }
 
     [Command(name: "removemerchant", shortHand: "rm", adminOnly: true, usage: ".pen rm", description: "Removes hovered merchant.")]
@@ -48,15 +52,21 @@ internal static class MerchantCommands
         EntityInput entityInput = character.Read<EntityInput>();
 
         Entity hoveredEntity = entityInput.HoveredEntity;
+        bool isMerchant = hoveredEntity.IsMerchant();
 
-        if (hoveredEntity.IsMerchant())
+        if (!isMerchant)
         {
-            hoveredEntity.Destroy();
+            ctx.Reply("Not hovering over Penumbra merchant!");
+            return;
+        }
+
+        if (TryRemoveMerchant(hoveredEntity))
+        {
             ctx.Reply("Merchant removed!");
         }
         else
         {
-            ctx.Reply("Not hovering over Penumbra merchant!");
+            ctx.Reply("Failed to remove merchant!");
         }
     }
 }
