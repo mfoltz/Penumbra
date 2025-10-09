@@ -121,12 +121,15 @@ jobs:
 
       - name: GH Release
         uses: softprops/action-gh-release@v1
-        if: github.event_name == 'workflow_dispatch'
+        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
         with:
-          body: Manual pre-release of ${{ env.version }}
+          body: |
+            Automated release for version ${{ env.version }} generated from GitHub Actions build.
+            - Commit: ${{ github.sha }}
+            - Run: ${{ github.run_id }}
           name: v${{ env.version }}
           fail_on_unmatched_files: true
-          prerelease: true
+          prerelease: false
           tag_name: v${{ env.version }}
           files: |
             ./bin/Release/net6.0/${{ steps.get_dll_name.outputs.dll_name }}.dll
