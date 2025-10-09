@@ -121,7 +121,7 @@ jobs:
 
       - name: GH Release (pre-release)
         uses: softprops/action-gh-release@v1
-        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+        if: (steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch') && env.version != ''
         with:
           body: |
             Automated pre-release for version ${{ env.version }} generated from this GitHub Actions build.
