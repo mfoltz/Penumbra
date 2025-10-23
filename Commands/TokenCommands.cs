@@ -1,6 +1,7 @@
 using Penumbra.Services;
 using ProjectM;
 using Stunlock.Core;
+using Unity.Collections;
 using Unity.Entities;
 using VampireCommandFramework;
 using static Penumbra.Plugin;
@@ -74,6 +75,83 @@ public static class TokenCommands
         steamId.UpdateAndSaveTokens(tokenData);
 
         ctx.Reply($"<color=red>{TOKEN_NAME}</color> - <color=#FFC0CB>{tokenData.Tokens}</color>");
+    }
+
+
+    [Command(name: "tradetokens", shortHand: "tt", adminOnly: false, usage: ".pen tt <player> <amount>", description: "Transfers tokens to another player.")]
+    public static void TradeTokensCommand(ChatCommandContext ctx, string targetPlayerName, int amount)
+    {
+        if (!_tokens)
+        {
+            ctx.Reply($"<color=red>{TOKEN_NAME}</color> are currently disabled.");
+            return;
+        }
+
+        if (amount <= 0)
+        {
+            ctx.Reply($"Enter a positive amount of <color=red>{TOKEN_NAME}</color> to trade.");
+            return;
+        }
+
+        ulong senderSteamId = ctx.Event.User.PlatformId;
+
+        if (!PlayerService.TryGetOnlinePlayerByName(targetPlayerName, out ulong recipientSteamId, out var recipientInfo))
+        {
+            ctx.Reply($"Could not find <color=white>{targetPlayerName}</color> online.");
+            return;
+        }
+
+        if (recipientSteamId == senderSteamId)
+        {
+            ctx.Reply("You cannot transfer tokens to yourself.");
+            return;
+        }
+
+        if (!TokenService.PlayerTokens.TryGetValue(senderSteamId, out var senderTokens))
+        {
+            senderSteamId.CreateTokens();
+            if (!TokenService.PlayerTokens.TryGetValue(senderSteamId, out senderTokens))
+            {
+                ctx.Reply("Unable to load your token data. Please try again.");
+                return;
+            }
+        }
+
+        senderTokens = TokenService.AccumulateTime(senderTokens);
+
+        if (!TokenService.PlayerTokens.TryGetValue(recipientSteamId, out var recipientTokens))
+        {
+            recipientSteamId.CreateTokens();
+            if (!TokenService.PlayerTokens.TryGetValue(recipientSteamId, out recipientTokens))
+            {
+                senderSteamId.UpdateAndSaveTokens(senderTokens);
+                ctx.Reply($"Unable to load <color=white>{recipientInfo.User.CharacterName.Value}</color>'s token data. Please try again later.");
+                return;
+            }
+        }
+
+        if (senderTokens.Tokens < amount)
+        {
+            senderSteamId.UpdateAndSaveTokens(senderTokens);
+            ctx.Reply($"You do not have enough <color=red>{TOKEN_NAME}</color>. Balance: <color=#FFC0CB>{senderTokens.Tokens}</color>.");
+            return;
+        }
+
+        var updatedSender = new TokenService.TokenBlob(senderTokens.Tokens - amount, senderTokens.TimeData);
+        var updatedRecipient = new TokenService.TokenBlob(recipientTokens.Tokens + amount, recipientTokens.TimeData);
+
+        TokenService.ApplyAndSaveTokenUpdates(new[]
+        {
+            (senderSteamId, updatedSender),
+            (recipientSteamId, updatedRecipient)
+        });
+
+        string recipientName = recipientInfo.User.CharacterName.Value;
+        ctx.Reply($"Sent <color=#FFC0CB>{amount}</color> <color=red>{TOKEN_NAME}</color> to <color=white>{recipientName}</color>. New balance: <color=#FFC0CB>{updatedSender.Tokens}</color>.");
+
+        string senderName = ctx.Event.User.CharacterName.Value;
+        FixedString512Bytes notification = new FixedString512Bytes($"{senderName} sent you <color=#FFC0CB>{amount}</color> <color=red>{TOKEN_NAME}</color>. New balance: <color=#FFC0CB>{updatedRecipient.Tokens}</color>.");
+        ServerChatUtils.SendSystemMessageToClient(Core.EntityManager, recipientInfo.User, ref notification);
     }
 
     [Command(name: "getdaily", shortHand: "gd", adminOnly: false, usage: ".pen gd", description: "Check time remaining or receive daily login reward if eligible.")]
