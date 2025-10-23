@@ -57,6 +57,9 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra gettokens`
   - Shows and updates tokens.
   - Shortcut: *.pen gt*
+- `.penumbra tradetokens <player> <amount>`
+  - Transfers tokens to another player.
+  - Shortcut: *.pen tt <player> <amount>*
 - `.penumbra getdaily`
   - Check time remaining or receive daily login reward if eligible.
   - Shortcut: *.pen gd*
