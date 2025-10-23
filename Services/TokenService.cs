@@ -3,7 +3,9 @@ using ProjectM.Network;
 using ProjectM.Scripting;
 using Stunlock.Core;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text.Json;
 using Unity.Collections;
 using Unity.Entities;
@@ -72,12 +74,10 @@ internal static class TokenService
                 yield return null;
             }
 
-            foreach (var entry in updated)
+            if (updated.Count > 0)
             {
-                entry.Key.UpdateTokens(entry.Value);
+                ApplyAndSaveTokenUpdates(updated.Select(static entry => (entry.Key, entry.Value)));
             }
-
-            SaveTokens();
             yield return _delay;
         }
     }
@@ -201,8 +201,7 @@ internal static class TokenService
     }
     public static void UpdateAndSaveTokens(this ulong steamId, TokenBlob tokenBlob)
     {
-        _playerTokens[steamId] = tokenBlob;
-        SaveTokens();
+        ApplyAndSaveTokenUpdates([(steamId, tokenBlob)]);
     }
     public static void UpdateTokens(this ulong steamId, TokenBlob tokenBlob)
     {
@@ -222,6 +221,23 @@ internal static class TokenService
 
         _playerTokens = JsonSerializer.Deserialize<ConcurrentDictionary<ulong, TokenBlob>>
                        (File.ReadAllText(TokensPath)) ?? [];
+    }
+    public static void ApplyAndSaveTokenUpdates(IEnumerable<(ulong steamId, TokenBlob blob)> updates)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        bool appliedUpdate = false;
+
+        foreach (var (steamId, blob) in updates)
+        {
+            _playerTokens[steamId] = blob;
+            appliedUpdate = true;
+        }
+
+        if (appliedUpdate)
+        {
+            SaveTokens();
+        }
     }
     static void SaveTokens()
     {

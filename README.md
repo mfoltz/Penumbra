@@ -65,7 +65,7 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 
 1. Run `./dev_init.sh` from the repository root to provision the .NET SDK (via the local `.dotnet` folder when necessary), restore NuGet packages, and produce a Release build.
    - Set `BEPINEX_PLUGIN_DIR` to copy the compiled plugin to a different BepInEx directory (defaults to `/workspace/plugins`).
-   - Use `DOTNET_CHANNEL` to pin a specific .NET release channel if you need something other than the default 8.0 LTS toolset (required for the repository's C# 12 syntax).
+   - Use `DOTNET_CHANNELS` to override the space-separated list of .NET SDK channels installed locally (defaults to installing 8.0 for the C# 12 compiler and 6.0 for the net6.0 targeting pack). The legacy `DOTNET_CHANNEL` variable is still honored when `DOTNET_CHANNELS` is unset.
 2. When invoking builds manually, prefer `dotnet build Penumbra.csproj -c Release -p:RunGenerateREADME=false` so that the README generation target is skipped during routine development builds.
 
 ## Credits
