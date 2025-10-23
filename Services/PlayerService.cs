@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Il2CppInterop.Runtime;
 using ProjectM.Network;
 using System.Collections.Concurrent;
@@ -72,6 +74,8 @@ internal static class PlayerService
     */
     public static void HandleConnection(ulong steamId, PlayerInfo player)
     {
+        _steamIdPlayerInfoCache[steamId] = player;
+
         if (!_tokens) return;
 
         if (!TokenService.PlayerTokens.TryGetValue(steamId, out var tokenData))
@@ -84,9 +88,36 @@ internal static class PlayerService
 
         if (_daily) TokenService.TryGiveDaily(player.User.PlatformId, player.User, player.CharEntity);
     }
+    public static void HandleDisconnection(ulong steamId)
+    {
+        _steamIdPlayerInfoCache.TryRemove(steamId, out _);
+    }
     public static bool TryGetPlayerInfo(this ulong steamId, out PlayerInfo playerInfo)
     {
         if (SteamIdPlayerInfoCache.TryGetValue(steamId, out playerInfo)) return true;
+        return false;
+    }
+    public static bool TryGetOnlinePlayerByName(string characterName, out ulong steamId, out PlayerInfo playerInfo)
+    {
+        steamId = default;
+        playerInfo = default;
+
+        if (string.IsNullOrWhiteSpace(characterName)) return false;
+
+        foreach (KeyValuePair<ulong, PlayerInfo> entry in SteamIdPlayerInfoCache)
+        {
+            PlayerInfo info = entry.Value;
+            if (info.User == null || !info.User.IsConnected) continue;
+
+            string cachedName = info.User.CharacterName.Value;
+            if (string.Equals(cachedName, characterName, StringComparison.OrdinalIgnoreCase))
+            {
+                steamId = entry.Key;
+                playerInfo = info;
+                return true;
+            }
+        }
+
         return false;
     }
 }

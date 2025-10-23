@@ -53,10 +53,13 @@ internal static class ServerBootstrapSystemPatches
         var user = __instance._ApprovedUsersLookup[userIndex].UserEntity.GetUser();
         ulong steamId = user.PlatformId;
 
-        if (!TokenService.PlayerTokens.TryGetValue(steamId, out var tokenData)) return;
+        if (TokenService.PlayerTokens.TryGetValue(steamId, out var tokenData))
+        {
+            tokenData = TokenService.AccumulateTime(tokenData);
+            steamId.UpdateAndSaveTokens(tokenData);
+        }
 
-        tokenData = TokenService.AccumulateTime(tokenData);
-        steamId.UpdateAndSaveTokens(tokenData);
+        HandleDisconnection(steamId);
     }
 
     [HarmonyPatch(typeof(HandleCreateCharacterEventSystem), nameof(HandleCreateCharacterEventSystem.OnUpdate))]
