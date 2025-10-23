@@ -1,3 +1,6 @@
+`1.2.9`
+- Added player-to-player token trading via `.pen tradetokens`.
+
 `1.2.8`
 - Added config option (`Token Economy`; can be used without the `Token System`) to remove coin recipes when enabled; recipes are added back on world load when disabled where applicable.
 - Spawn command no longer takes trader prefabs directly (e.g., `.pen sm 1`), defaulting to major noctem trader; other traders may still be used via config.
