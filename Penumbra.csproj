@@ -35,11 +35,11 @@
 		<PackageReference Include="VRising.VampireCommandFramework" Version="0.10.4" />
 	</ItemGroup>
 	
-	<Target Name="BuildToServer" AfterTargets="Build">
-		<Message Text="DLL to V Rising Server" Importance="High" />
-		<Copy SourceFiles="$(TargetDir)$(ProjectName).dll" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\VRisingDedicatedServer\BepInEx\plugins" />
-		<Message Text="DLL Server Copied OK" Importance="High" />
-	</Target>
+        <Target Name="BuildToServer" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+                <Message Text="DLL to V Rising Server" Importance="High" />
+                <Copy SourceFiles="$(TargetDir)$(ProjectName).dll" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\VRisingDedicatedServer\BepInEx\plugins" />
+                <Message Text="DLL Server Copied OK" Importance="High" />
+        </Target>
 	
 	<Target Name="GenerateReadMe" Condition="'$(RunGenerateREADME)' == 'true'" AfterTargets="Build">
 		<Exec Command="dotnet &quot;$(TargetDir)$(AssemblyName).dll&quot; &quot;$(ProjectDir)Commands&quot; &quot;$(ProjectDir)README.md&quot;" />

@@ -3,10 +3,38 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$SCRIPT_DIR/Penumbra.csproj"
-CONFIGURATION="Release"
+CONFIGURATION="${CONFIGURATION:-Release}"
 BEPINEX_PLUGIN_DIR="${BEPINEX_PLUGIN_DIR:-/workspace/plugins}"
 LOCAL_DOTNET_DIR="$SCRIPT_DIR/.dotnet"
-DOTNET_CHANNEL="${DOTNET_CHANNEL:-8.0}"
+
+DOTNET_CHANNELS_DEFAULT="8.0 6.0"
+if [ -n "${DOTNET_CHANNEL:-}" ] && [ -z "${DOTNET_CHANNELS:-}" ]; then
+    DOTNET_CHANNELS="$DOTNET_CHANNEL"
+fi
+DOTNET_CHANNELS="${DOTNET_CHANNELS:-$DOTNET_CHANNELS_DEFAULT}"
+
+escape_for_regex() {
+    printf '%s' "$1" | sed 's/[][().*^$?+{}|\\]/\\&/g'
+}
+
+has_required_sdks() {
+    local dotnet_cli="$1"
+    shift
+
+    local installed_sdks
+    installed_sdks=$("$dotnet_cli" --list-sdks 2>/dev/null | awk '{print $1}')
+
+    for channel in "$@"; do
+        local channel_pattern
+        channel_pattern="^$(escape_for_regex "$channel")(\\.|$)"
+
+        if ! grep -Eq "$channel_pattern" <<<"$installed_sdks"; then
+            return 1
+        fi
+    done
+
+    return 0
+}
 
 download_dotnet_install_script() {
     local destination="$1"
@@ -23,7 +51,10 @@ download_dotnet_install_script() {
 }
 
 ensure_dotnet() {
-    if command -v dotnet >/dev/null 2>&1; then
+    # shellcheck disable=SC2206
+    local required_channels=($DOTNET_CHANNELS)
+
+    if command -v dotnet >/dev/null 2>&1 && has_required_sdks "$(command -v dotnet)" "${required_channels[@]}"; then
         return
     fi
 
@@ -31,10 +62,7 @@ ensure_dotnet() {
         export DOTNET_ROOT="$LOCAL_DOTNET_DIR"
         export PATH="$DOTNET_ROOT:$PATH"
 
-        local channel_pattern
-        channel_pattern="$(printf '%s' "$DOTNET_CHANNEL" | sed 's/[][().*^$?+{}|\\]/\\&/g')"
-
-        if "$LOCAL_DOTNET_DIR/dotnet" --list-sdks | awk '{print $1}' | grep -Eq "^${channel_pattern}(\\.|$)"; then
+        if has_required_sdks "$LOCAL_DOTNET_DIR/dotnet" "${required_channels[@]}"; then
             return
         fi
     fi
@@ -47,13 +75,20 @@ ensure_dotnet() {
         chmod +x "$installer"
     fi
 
-    "$installer" --channel "$DOTNET_CHANNEL" --install-dir "$LOCAL_DOTNET_DIR" --skip-non-versioned-files
+    for channel in "${required_channels[@]}"; do
+        "$installer" --channel "$channel" --install-dir "$LOCAL_DOTNET_DIR" --skip-non-versioned-files
+    done
 
     export DOTNET_ROOT="$LOCAL_DOTNET_DIR"
     export PATH="$DOTNET_ROOT:$PATH"
 
     if ! command -v dotnet >/dev/null 2>&1; then
         echo "Failed to install the .NET SDK. Please install it manually." >&2
+        exit 1
+    fi
+
+    if ! has_required_sdks "$(command -v dotnet)" "${required_channels[@]}"; then
+        echo "The installed .NET SDK does not include the required channels: ${DOTNET_CHANNELS}." >&2
         exit 1
     fi
 }

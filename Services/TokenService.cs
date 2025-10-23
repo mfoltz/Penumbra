@@ -5,6 +5,7 @@ using Stunlock.Core;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text.Json;
 using Unity.Collections;
 using Unity.Entities;
@@ -75,14 +76,7 @@ internal static class TokenService
 
             if (updated.Count > 0)
             {
-                List<(ulong steamId, TokenBlob blob)> pendingUpdates = new(updated.Count);
-
-                foreach (var entry in updated)
-                {
-                    pendingUpdates.Add((entry.Key, entry.Value));
-                }
-
-                ApplyAndSaveTokenUpdates(pendingUpdates);
+                ApplyAndSaveTokenUpdates(updated.Select(static entry => (entry.Key, entry.Value)));
             }
             yield return _delay;
         }
