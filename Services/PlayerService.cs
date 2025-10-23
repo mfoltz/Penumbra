@@ -107,9 +107,9 @@ internal static class PlayerService
         foreach (KeyValuePair<ulong, PlayerInfo> entry in SteamIdPlayerInfoCache)
         {
             PlayerInfo info = entry.Value;
-            if (info.User == null || !info.User.IsConnected) continue;
+            if (info.User is not { IsConnected: true } user) continue;
 
-            string cachedName = info.User.CharacterName.Value;
+            string cachedName = user.CharacterName.Value;
             if (string.Equals(cachedName, characterName, StringComparison.OrdinalIgnoreCase))
             {
                 steamId = entry.Key;

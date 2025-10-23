@@ -4,6 +4,7 @@
 - [Features](#features)
 - [Configuration](#configuration)
 - [Commands](#commands)
+- [Development](#development)
 - [Credits](#credits)
 
 ## Sponsor this project
@@ -59,6 +60,13 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra getdaily`
   - Check time remaining or receive daily login reward if eligible.
   - Shortcut: *.pen gd*
+
+## Development
+
+1. Run `./dev_init.sh` from the repository root to provision the .NET SDK (via the local `.dotnet` folder when necessary), restore NuGet packages, and produce a Release build.
+   - Set `BEPINEX_PLUGIN_DIR` to copy the compiled plugin to a different BepInEx directory (defaults to `/workspace/plugins`).
+   - Use `DOTNET_CHANNEL` to pin a specific .NET release channel if you need something other than the default 8.0 LTS toolset (required for the repository's C# 12 syntax).
+2. When invoking builds manually, prefer `dotnet build Penumbra.csproj -c Release -p:RunGenerateREADME=false` so that the README generation target is skipped during routine development builds.
 
 ## Credits
 
