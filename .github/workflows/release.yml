@@ -1,7 +1,14 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Override tag to release when dispatching manually'
+        required: false
 
 jobs:
   release_on_thunderstore:
@@ -18,19 +25,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract Latest Tag
-        id: extract_tag
-        run: |
-          latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+      - name: Resolve Release Tag
+        id: resolve_tag
         shell: bash
+        env:
+          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+          else
+            release_tag="${MANUAL_RELEASE_TAG}"
+            if [[ -z "${release_tag}" ]]; then
+              release_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+            fi
+          fi
 
-      - name: Set Release Tag
-        run: echo "RELEASE_TAG=${{ env.latest_tag }}" >> $GITHUB_ENV
+          if [[ -z "${release_tag}" ]]; then
+            echo "Failed to resolve a release tag" >&2
+            exit 1
+          fi
+
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
 
       - name: Download Release
         run: |
-          gh release download ${{ env.RELEASE_TAG }} -D ./dist
+          gh release download ${{ steps.resolve_tag.outputs.release_tag }} -D ./dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -42,4 +62,4 @@ jobs:
           trimmed_tag=${RELEASE_TAG:1}
           tcli publish --token ${{ secrets.THUNDERSTORE_KEY }} --package-version $trimmed_tag
         env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          RELEASE_TAG: ${{ steps.resolve_tag.outputs.release_tag }}
