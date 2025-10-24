@@ -73,6 +73,13 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 3. When invoking builds manually, run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` so you're using the same arguments as `dev_init.sh` and the README generation target stays disabled during routine development builds.
 4. After building, execute `dotnet test ./Penumbra.csproj --configuration Release --no-build` to validate the Release configuration without rebuilding artifacts.
 
+### Release workflow
+
+- **Codex branch CI:** Every push to `codex` runs the `Build` workflow for verification only. These builds honor the version guard in `.github/workflows/build.yml`, so bump the `<Version>` in `Penumbra.csproj` before opening a release PR. Keeping `codex` ahead of the latest `v*` tag ensures the guard allows the build to run while still preventing accidental repackaging of an already-published version.
+- **Promoting a prerelease:** When the branch is ready for external testing, manually dispatch the `Build` workflow with `ready_to_ship=true`. That flips the workflow into prerelease mode: it updates `thunderstore.toml`, produces a Release build under `./bin/Release/net6.0/`, and uploads the DLL plus `CHANGELOG.md` to a GitHub prerelease tagged `v<version>-pre`. Use this artifact bundle when sanity-checking what will land on Thunderstore.
+- **Version bumps & overrides:** The version guard compares `Penumbra.csproj` against the newest `v*` tag. If you must rerun CI without bumping the version (for example to re-test a build), trigger the workflow manually—manual dispatch bypasses the guard. Otherwise, increment the version before retrying so that both the guard and Thunderstore metadata stay in sync.
+- **Final release pipeline:** Cutting a release involves tagging the commit on `main` with the final semantic version (for example `git tag v1.2.3 && git push origin v1.2.3`) and creating the corresponding GitHub release that reuses the prerelease artifacts. With that `v*` tag in place, trigger the `Release` workflow, which locates the latest tag, downloads the GitHub release assets into `./dist`, and publishes the package to Thunderstore via the CLI. If an emergency hotfix is needed, you can rerun the `Release` workflow after updating the tag or assets to push an updated build.
+
 ## Credits
 
 - [BloodyMerchant](https://github.com/oscarpedrero/BloodyMerchant) by [@Trodi](https://github.com/oscarpedrero) was invaluable in putting this together, many thanks to him and other listed contributors!
