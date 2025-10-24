@@ -70,6 +70,12 @@ jobs:
             exit 0
           fi
 
+          if [ "$GITHUB_REF" = "refs/heads/codex" ]; then
+            echo "Prerelease branch detected; proceeding with build regardless of version guard."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           git fetch --force --tags
           latest_tag=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
           latest_version=${latest_tag#v}
