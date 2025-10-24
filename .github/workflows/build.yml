@@ -4,13 +4,22 @@ on:
   push:
     branches:
       - main
+      - codex
   workflow_dispatch:
+    inputs:
+      ready_to_ship:
+        description: "Mark prerelease branch as ready to publish"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    env:
+      is_prerelease_ready: ${{ github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/codex' && github.event_name == 'workflow_dispatch' && github.event.inputs.ready_to_ship == 'true') }}
 
     steps:
       - name: Checkout
@@ -61,6 +70,12 @@ jobs:
             exit 0
           fi
 
+          if [ "$GITHUB_REF" = "refs/heads/codex" ]; then
+            echo "Prerelease branch detected; proceeding with build regardless of version guard."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           git fetch --force --tags
           latest_tag=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
           latest_version=${latest_tag#v}
@@ -100,7 +115,7 @@ jobs:
         run: dotnet restore
 
       - name: Update thunderstore.toml
-        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+        if: (steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch') && env.is_prerelease_ready == 'true'
         run: |
           sed -i "s/versionNumber = \".*\"/versionNumber = \"${{ env.version }}\"/" thunderstore.toml
 
@@ -117,11 +132,15 @@ jobs:
 
       - name: Build (Release)
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
-        run: dotnet build . --configuration Release -p:Version=${{ env.version }} -p:RunGenerateREADME=false
+        run: dotnet build "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release -p:Version=${{ env.version }} -p:RunGenerateREADME=false
+
+      - name: Test (Release)
+        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+        run: dotnet test "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release --no-build
 
       - name: GH Release (pre-release)
         uses: softprops/action-gh-release@v1
-        if: (steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch') && env.version != ''
+        if: (steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch') && env.is_prerelease_ready == 'true' && env.version != ''
         with:
           body: |
             Automated pre-release for version ${{ env.version }} generated from this GitHub Actions build.

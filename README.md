@@ -69,7 +69,9 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 1. Run `./dev_init.sh` from the repository root to provision the .NET SDK (via the local `.dotnet` folder when necessary), restore NuGet packages, and produce a Release build.
    - Set `BEPINEX_PLUGIN_DIR` to copy the compiled plugin to a different BepInEx directory (defaults to `/workspace/plugins`).
    - Use `DOTNET_CHANNELS` to override the space-separated list of .NET SDK channels installed locally (defaults to installing 8.0 for the C# 12 compiler and 6.0 for the net6.0 targeting pack). The legacy `DOTNET_CHANNEL` variable is still honored when `DOTNET_CHANNELS` is unset.
-2. When invoking builds manually, run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` so you're using the same arguments as `dev_init.sh` and the README generation target stays disabled during routine development builds.
+2. If you're working outside of `dev_init.sh`, install the .NET 7 SDK locally (the workflow pins to `7.0.x`) before running any manual build or test commands. Verify the installation with `dotnet --list-sdks` or follow the [official SDK installation guide](https://learn.microsoft.com/dotnet/core/install/).
+3. When invoking builds manually, run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` so you're using the same arguments as `dev_init.sh` and the README generation target stays disabled during routine development builds.
+4. After building, execute `dotnet test ./Penumbra.csproj --configuration Release --no-build` to validate the Release configuration without rebuilding artifacts.
 
 ## Credits
 
