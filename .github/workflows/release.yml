@@ -12,6 +12,10 @@ on:
 
 jobs:
   release_on_thunderstore:
+    if: |
+      github.ref != 'refs/heads/codex' &&
+      github.head_ref != 'codex' &&
+      github.base_ref != 'codex'
     runs-on: ubuntu-latest
     steps:
       - name: Setup .NET
@@ -30,11 +34,14 @@ jobs:
         shell: bash
         env:
           MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -euo pipefail
+
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
             release_tag="${GITHUB_REF_NAME}"
           else
-            release_tag="${MANUAL_RELEASE_TAG}"
+            release_tag="${MANUAL_RELEASE_TAG:-}"
             if [[ -z "${release_tag}" ]]; then
               release_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
             fi
@@ -42,6 +49,20 @@ jobs:
 
           if [[ -z "${release_tag}" ]]; then
             echo "Failed to resolve a release tag" >&2
+            exit 1
+          fi
+
+          default_branch="${DEFAULT_BRANCH:-main}"
+
+          if ! git fetch origin "${default_branch}" >/dev/null 2>&1; then
+            echo "Unable to fetch '${default_branch}' from origin to validate the release tag." >&2
+            exit 1
+          fi
+
+          release_commit=$(git rev-list -n 1 "${release_tag}")
+
+          if ! git merge-base --is-ancestor "${release_commit}" "origin/${default_branch}"; then
+            echo "Resolved release tag '${release_tag}' (commit ${release_commit}) is not reachable from '${default_branch}'. Aborting release to avoid publishing from codex branch commits." >&2
             exit 1
           fi
 
