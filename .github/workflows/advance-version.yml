@@ -1,0 +1,286 @@
+name: Advance Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: "SemVer segment to increment"
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease_label:
+        description: "Optional prerelease label (e.g. beta.1)"
+        required: false
+        type: string
+      target_branch:
+        description: "Branch to update"
+        required: false
+        type: string
+        default: codex
+  workflow_call:
+    inputs:
+      increment:
+        required: true
+        type: string
+      prerelease_label:
+        required: false
+        type: string
+      target_branch:
+        required: false
+        type: string
+        default: codex
+    outputs:
+      new_version:
+        description: "The version produced by this workflow"
+        value: ${{ jobs.advance.outputs.new_version }}
+
+jobs:
+  advance:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.share_version.outputs.new_version }}
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+    steps:
+      - name: Check out target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Determine current and next versions
+        id: version
+        env:
+          INCREMENT: ${{ inputs.increment }}
+          PRERELEASE_LABEL: ${{ inputs.prerelease_label }}
+        run: |
+          python <<'PY'
+import os
+import re
+from pathlib import Path
+
+csproj_path = Path('Penumbra.csproj')
+match = re.search(r'<Version>([^<]+)</Version>', csproj_path.read_text(encoding='utf-8'))
+if not match:
+    raise SystemExit('Unable to locate <Version> element in Penumbra.csproj')
+current_version = match.group(1).strip()
+
+increment = os.environ.get('INCREMENT', '').strip().lower()
+if increment not in {'major', 'minor', 'patch'}:
+    raise SystemExit(f'Unsupported increment: {increment!r}')
+
+label = os.environ.get('PRERELEASE_LABEL', '').strip()
+base_version = current_version.split('-')[0]
+try:
+    major, minor, patch = [int(part) for part in base_version.split('.')]
+except ValueError as exc:
+    raise SystemExit(f'Current version is not a valid semver: {current_version!r}') from exc
+
+if increment == 'major':
+    major += 1
+    minor = 0
+    patch = 0
+elif increment == 'minor':
+    minor += 1
+    patch = 0
+else:
+    patch += 1
+
+clean_label = re.sub(r'[^0-9A-Za-z.-]+', '-', label).strip('-')
+if clean_label:
+    new_version = f"{major}.{minor}.{patch}-{clean_label}"
+else:
+    new_version = f"{major}.{minor}.{patch}"
+
+slug = re.sub(r'[^0-9A-Za-z]+', '-', new_version).strip('-').lower() or 'version'
+
+print(f"Current version: {current_version}")
+print(f"New version: {new_version}")
+
+with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+    handle.write(f"current_version={current_version}\n")
+    handle.write(f"new_version={new_version}\n")
+    handle.write(f"branch_slug={slug}\n")
+PY
+
+      - name: Update project metadata
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          python <<'PY'
+import os
+import re
+from pathlib import Path
+
+new_version = os.environ['NEW_VERSION']
+
+csproj_path = Path('Penumbra.csproj')
+csproj_text = csproj_path.read_text(encoding='utf-8')
+csproj_text, replacements = re.subn(r'(<Version>)([^<]+)(</Version>)', rf'\1{new_version}\3', csproj_text, count=1)
+if replacements == 0:
+    raise SystemExit('Failed to update <Version> element in Penumbra.csproj')
+csproj_path.write_text(csproj_text, encoding='utf-8')
+
+thunder_path = Path('thunderstore.toml')
+thunder_text = thunder_path.read_text(encoding='utf-8')
+thunder_text, replacements = re.subn(r'(?m)^(versionNumber\s*=\s*")([^\"]+)(")', rf'\1{new_version}\3', thunder_text, count=1)
+if replacements == 0:
+    raise SystemExit('Failed to update versionNumber in thunderstore.toml')
+thunder_path.write_text(thunder_text, encoding='utf-8')
+PY
+
+      - name: Refresh changelog
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          python <<'PY'
+import os
+import re
+from datetime import date
+from pathlib import Path
+
+new_version = os.environ['NEW_VERSION']
+today = date.today().isoformat()
+path = Path('CHANGELOG.md')
+raw_lines = path.read_text(encoding='utf-8').splitlines()
+
+backtick_pattern = re.compile(r'^`([^`]+)`$')
+heading_pattern = re.compile(r'^## \[([^\]]+)\]')
+
+entries = []
+unreleased_lines = []
+current_section = None
+current_lines = []
+
+for line in raw_lines:
+    stripped = line.strip()
+    backtick_match = backtick_pattern.match(stripped)
+    heading_match = heading_pattern.match(stripped)
+    detected = None
+    if heading_match:
+        candidate = heading_match.group(1).strip()
+        detected = '__UNRELEASED__' if candidate.lower() == 'unreleased' else candidate
+    elif backtick_match:
+        detected = backtick_match.group(1).strip()
+
+    if detected is not None:
+        if current_section == '__UNRELEASED__':
+            unreleased_lines = [line.rstrip() for line in current_lines]
+        elif current_section:
+            entries.append((current_section, [line.rstrip() for line in current_lines]))
+        current_section = detected
+        current_lines = []
+    else:
+        if current_section is not None:
+            current_lines.append(line)
+
+if current_section == '__UNRELEASED__':
+    unreleased_lines = [line.rstrip() for line in current_lines]
+elif current_section:
+    entries.append((current_section, [line.rstrip() for line in current_lines]))
+
+filtered_entries = []
+seen_versions = set()
+for version, captured_lines in entries:
+    version_key = version.strip()
+    if version_key.lower() == 'unreleased':
+        continue
+    if version_key == new_version or version_key in seen_versions:
+        continue
+    seen_versions.add(version_key)
+    filtered_entries.append((version_key, captured_lines))
+
+content = ['# Changelog', '', '## [Unreleased]', '']
+
+clean_unreleased = [line for line in unreleased_lines if line.strip()]
+if clean_unreleased:
+    content.extend(clean_unreleased)
+else:
+    content.append('- _No unreleased changes yet._')
+content.append('')
+
+content.append(f'## [{new_version}] - {today}')
+content.append('')
+content.append('- _Placeholder for release notes._')
+content.append('')
+
+for version, captured_lines in filtered_entries:
+    content.append(f'## [{version}]')
+    content.append('')
+    trimmed = [line for line in captured_lines if line.strip()]
+    if trimmed:
+        content.extend(trimmed)
+    else:
+        content.append('- _No notes provided._')
+    content.append('')
+
+path.write_text('\\n'.join(content).rstrip() + '\\n', encoding='utf-8')
+PY
+
+      - name: Show changes
+        run: git status --short
+
+      - name: Check branch protection
+        id: protection
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          target='${{ env.TARGET_BRANCH }}'
+          status=$(curl -sS -o /tmp/branch_protection -w "%{http_code}" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/branches/${target}/protection)
+          if [ "$status" = "200" ]; then
+            echo "protected=true" >> "$GITHUB_OUTPUT"
+          elif [ "$status" = "404" ]; then
+            echo "protected=false" >> "$GITHUB_OUTPUT"
+          elif [ "$status" = "403" ]; then
+            echo "protected=true" >> "$GITHUB_OUTPUT"
+            echo 'Branch protection check returned 403; assuming protected.'
+            cat /tmp/branch_protection
+          else
+            echo "Unexpected status $status when checking branch protection"
+            cat /tmp/branch_protection
+            exit 1
+          fi
+
+      - name: Commit version bump
+        if: steps.protection.outputs.protected == 'false'
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Penumbra.csproj thunderstore.toml CHANGELOG.md
+          git commit -m "chore: bump version to ${NEW_VERSION}"
+
+      - name: Push changes
+        if: steps.protection.outputs.protected == 'false'
+        run: |
+          git push origin HEAD:${{ env.TARGET_BRANCH }}
+
+      - name: Create pull request
+        if: steps.protection.outputs.protected != 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ env.TARGET_BRANCH }}
+          branch: chore/bump-version-${{ steps.version.outputs.branch_slug }}
+          commit-message: chore: bump version to ${{ steps.version.outputs.new_version }}
+          title: chore: bump version to ${{ steps.version.outputs.new_version }}
+          body: |
+            ## Summary
+            - bump version to ${{ steps.version.outputs.new_version }}
+          add-paths: |
+            Penumbra.csproj
+            thunderstore.toml
+            CHANGELOG.md
+
+      - name: Share version output
+        id: share_version
+        run: echo "new_version=${{ steps.version.outputs.new_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Print new version
+        run: echo "Bumped to version ${{ steps.version.outputs.new_version }}"
