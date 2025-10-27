@@ -1,0 +1,27 @@
+name: Advance Major Version
+
+# Shortcut description ensures visibility in GitHub's workflow picker.
+description: Shortcut for advancing the version with a major increment via advance-version.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Optional branch to update (defaults to codex)."
+        required: false
+        type: string
+        default: codex
+      prerelease_label:
+        description: "Optional prerelease label (e.g. beta.1)."
+        required: false
+        type: string
+
+jobs:
+  advance:
+    uses: ./.github/workflows/advance-version.yml
+    permissions: inherit
+    secrets: inherit
+    with:
+      increment: major
+      target_branch: ${{ inputs.target_branch }}
+      prerelease_label: ${{ inputs.prerelease_label }}
