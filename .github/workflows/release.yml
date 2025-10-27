@@ -51,7 +51,7 @@ jobs:
               exit 1
             fi
 
-            run_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/Build.yml/runs" -f per_page=100 \
+            run_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs" -f per_page=100 \
               | jq -r --arg sha "${target_sha}" '
                 .workflow_runs[]? | select(.head_sha == $sha and .conclusion == "success") | .id
               ' | head -n 1)
