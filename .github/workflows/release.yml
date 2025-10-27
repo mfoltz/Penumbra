@@ -1,13 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: 'Override tag to release when dispatching manually'
+      run_id:
+        description: 'Optional Build workflow run ID to publish from when dispatching manually'
         required: false
 
 jobs:
@@ -17,70 +16,116 @@ jobs:
       github.head_ref != 'codex' &&
       github.base_ref != 'codex'
     runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
-          dotnet-quality: 'preview'
+      - name: Ensure release is published
+        if: github.event_name == 'release'
+        run: |
+          if [[ "${{ github.event.release.draft }}" == 'true' || "${{ github.event.release.prerelease }}" == 'true' ]]; then
+            echo 'Release must be published and not marked as draft or prerelease.' >&2
+            exit 1
+          fi
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Resolve Release Tag
-        id: resolve_tag
-        shell: bash
+      - name: Resolve Build workflow run
+        id: resolve_run
         env:
-          MANUAL_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_COMMITISH: ${{ github.event_name == 'release' && github.event.release.target_commitish || '' }}
+          MANUAL_RUN_ID: ${{ github.event.inputs.run_id }}
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            release_tag="${GITHUB_REF_NAME}"
-          else
-            release_tag="${MANUAL_RELEASE_TAG:-}"
-            if [[ -z "${release_tag}" ]]; then
-              release_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            if [[ -z "${TARGET_COMMITISH}" ]]; then
+              echo "Release payload did not include target_commitish." >&2
+              exit 1
             fi
+
+            target_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_COMMITISH}" --jq '.sha')
+
+            if [[ -z "${target_sha}" || "${target_sha}" == "null" ]]; then
+              echo "Unable to resolve commit SHA for ${TARGET_COMMITISH}." >&2
+              exit 1
+            fi
+
+            run_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/Build.yml/runs" -f per_page=100 \
+              | jq -r --arg sha "${target_sha}" '
+                .workflow_runs[]? | select(.head_sha == $sha and .conclusion == "success") | .id
+              ' | head -n 1)
+
+            if [[ -z "${run_id}" || "${run_id}" == "null" ]]; then
+              echo "Unable to find a successful Build workflow run for commit ${target_sha}." >&2
+              exit 1
+            fi
+          else
+            run_id="${MANUAL_RUN_ID:-}"
+
+            if [[ -z "${run_id}" ]]; then
+              echo "Manual dispatch requires specifying a Build workflow run ID." >&2
+              exit 1
+            fi
+
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.id' >/dev/null
           fi
 
-          if [[ -z "${release_tag}" ]]; then
-            echo "Failed to resolve a release tag" >&2
-            exit 1
-          fi
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
 
-          default_branch="${DEFAULT_BRANCH:-main}"
+      - name: Download Thunderstore package artifact
+        uses: actions/download-artifact@v3
+        with:
+          run-id: ${{ steps.resolve_run.outputs.run_id }}
+          pattern: thunderstore-package-*
+          path: build-artifacts
+          merge-multiple: true
 
-          if ! git fetch origin "${default_branch}" >/dev/null 2>&1; then
-            echo "Unable to fetch '${default_branch}' from origin to validate the release tag." >&2
-            exit 1
-          fi
-
-          release_commit=$(git rev-list -n 1 "${release_tag}")
-
-          if ! git merge-base --is-ancestor "${release_commit}" "origin/${default_branch}"; then
-            echo "Resolved release tag '${release_tag}' (commit ${release_commit}) is not reachable from '${default_branch}'. Aborting release to avoid publishing from codex branch commits." >&2
-            exit 1
-          fi
-
-          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
-
-      - name: Download Release
+      - name: Extract package metadata
+        id: package_metadata
         run: |
-          gh release download ${{ steps.resolve_tag.outputs.release_tag }} -D ./dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          set -euo pipefail
+
+          artifact_root="build-artifacts"
+          metadata_file=$(find "${artifact_root}" -type f -name 'build-metadata.json' | head -n 1)
+
+          if [[ -z "${metadata_file}" ]]; then
+            echo "Unable to locate build-metadata.json in downloaded artifacts." >&2
+            exit 1
+          fi
+
+          version=$(jq -r '.version' "${metadata_file}")
+
+          if [[ -z "${version}" || "${version}" == "null" ]]; then
+            echo "build-metadata.json did not contain a valid version." >&2
+            exit 1
+          fi
+
+          package_zip=$(find "${artifact_root}" -type f -name "Penumbra-v${version}.zip" | head -n 1)
+
+          if [[ -z "${package_zip}" ]]; then
+            package_zip=$(find "${artifact_root}" -type f -name '*.zip' | head -n 1)
+          fi
+
+          if [[ -z "${package_zip}" ]]; then
+            echo "Unable to locate packaged Thunderstore zip from Build artifacts." >&2
+            exit 1
+          fi
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "package_zip=${package_zip}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '7.0.x'
 
       - name: Install Thunderstore CLI (tcli)
         run: dotnet tool install --global tcli
 
       - name: Publish build to Thunderstore
         run: |
-          trimmed_tag=${RELEASE_TAG:1}
-          tcli publish --token ${{ secrets.THUNDERSTORE_KEY }} --package-version $trimmed_tag
-        env:
-          RELEASE_TAG: ${{ steps.resolve_tag.outputs.release_tag }}
+          tcli publish \
+            --token "${{ secrets.THUNDERSTORE_KEY }}" \
+            --package "${{ steps.package_metadata.outputs.package_zip }}" \
+            --package-version "${{ steps.package_metadata.outputs.version }}"
