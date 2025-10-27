@@ -133,6 +133,60 @@ jobs:
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
         run: dotnet test "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release --no-build
 
+      - name: Stage release payload
+        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+
+          version="${{ env.version }}"
+          dll_name="${{ steps.get_dll_name.outputs.dll_name }}"
+          artifact_root="dist"
+          package_basename="Penumbra-v${version}"
+          version_dir="${artifact_root}/${package_basename}"
+          package_dir="${version_dir}/package"
+          plugins_dir="${package_dir}/plugins/${dll_name}"
+
+          rm -rf "${version_dir}"
+          mkdir -p "${plugins_dir}"
+
+          cp "./bin/Release/net6.0/${dll_name}.dll" "${plugins_dir}/"
+          cp thunderstore.toml "${package_dir}/"
+
+          if [ -f README.md ]; then
+            cp README.md "${package_dir}/"
+          fi
+
+          if [ -f CHANGELOG.md ]; then
+            cp CHANGELOG.md "${package_dir}/"
+            cp CHANGELOG.md "${version_dir}/"
+          fi
+
+          if [ -f icon.png ]; then
+            cp icon.png "${package_dir}/"
+          fi
+
+          if [ -d Resources ]; then
+            cp -R Resources "${package_dir}/Resources"
+          fi
+
+          cat <<META > "${version_dir}/build-metadata.json"
+          {
+            "version": "${version}",
+            "run_id": "${GITHUB_RUN_ID}"
+          }
+          META
+
+          (cd "${package_dir}" && zip -r "../${package_basename}.zip" .)
+
+      - name: Upload release artifact
+        if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v3
+        with:
+          name: thunderstore-package-v${{ env.version }}
+          path: |
+            dist/Penumbra-v${{ env.version }}
+            dist/Penumbra-v${{ env.version }}/Penumbra-v${{ env.version }}.zip
+
       - name: GH Release (pre-release)
         uses: softprops/action-gh-release@v1
         if: (steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch') && env.is_prerelease_ready == 'true' && env.version != ''
@@ -146,7 +200,7 @@ jobs:
           prerelease: true
           tag_name: v${{ env.version }}-pre
           files: |
-            ./bin/Release/net6.0/${{ steps.get_dll_name.outputs.dll_name }}.dll
-            CHANGELOG.md
+            dist/Penumbra-v${{ env.version }}/Penumbra-v${{ env.version }}.zip
+            dist/Penumbra-v${{ env.version }}/CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
