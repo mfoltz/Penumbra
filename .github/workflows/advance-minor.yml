@@ -19,6 +19,8 @@ on:
 jobs:
   advance:
     uses: ./.github/workflows/advance-version.yml
+    permissions: inherit
+    secrets: inherit
     with:
       increment: minor
       target_branch: ${{ inputs.target_branch }}
