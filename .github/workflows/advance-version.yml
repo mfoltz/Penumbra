@@ -146,8 +146,8 @@ today = date.today().isoformat()
 path = Path('CHANGELOG.md')
 raw_lines = path.read_text(encoding='utf-8').splitlines()
 
+heading_pattern = re.compile(r'^##\s+(?:\[(?P<bracket>[^\]]+)\]|(?P<plain>.+))\s*$')
 backtick_pattern = re.compile(r'^`([^`]+)`$')
-heading_pattern = re.compile(r'^## \[([^\]]+)\]')
 
 entries = []
 unreleased_lines = []
@@ -156,20 +156,22 @@ current_lines = []
 
 for line in raw_lines:
     stripped = line.strip()
-    backtick_match = backtick_pattern.match(stripped)
     heading_match = heading_pattern.match(stripped)
+    backtick_match = backtick_pattern.match(stripped)
     detected = None
     if heading_match:
-        candidate = heading_match.group(1).strip()
+        label = heading_match.group('bracket') or heading_match.group('plain')
+        head, sep, _ = label.partition(' - ')
+        candidate = head.strip() if sep else label.strip()
         detected = '__UNRELEASED__' if candidate.lower() == 'unreleased' else candidate
     elif backtick_match:
         detected = backtick_match.group(1).strip()
 
     if detected is not None:
         if current_section == '__UNRELEASED__':
-            unreleased_lines = [line.rstrip() for line in current_lines]
+            unreleased_lines = [value.rstrip() for value in current_lines]
         elif current_section:
-            entries.append((current_section, [line.rstrip() for line in current_lines]))
+            entries.append((current_section, [value.rstrip() for value in current_lines]))
         current_section = detected
         current_lines = []
     else:
@@ -177,9 +179,9 @@ for line in raw_lines:
             current_lines.append(line)
 
 if current_section == '__UNRELEASED__':
-    unreleased_lines = [line.rstrip() for line in current_lines]
+    unreleased_lines = [value.rstrip() for value in current_lines]
 elif current_section:
-    entries.append((current_section, [line.rstrip() for line in current_lines]))
+    entries.append((current_section, [value.rstrip() for value in current_lines]))
 
 filtered_entries = []
 seen_versions = set()
@@ -192,22 +194,25 @@ for version, captured_lines in entries:
     seen_versions.add(version_key)
     filtered_entries.append((version_key, captured_lines))
 
-content = ['# Changelog', '', '## [Unreleased]', '']
+placeholder = '- _No unreleased changes yet._'
+content = ['# Changelog', '', '## Unreleased', '']
 
-clean_unreleased = [line for line in unreleased_lines if line.strip()]
-if clean_unreleased:
-    content.extend(clean_unreleased)
+clean_unreleased = [line for line in unreleased_lines if line.strip() and line.strip() != placeholder]
+moved_lines = clean_unreleased
+
+content.append(placeholder)
+content.append('')
+
+content.append(f'## {new_version} - {today}')
+content.append('')
+if moved_lines:
+    content.extend(moved_lines)
 else:
-    content.append('- _No unreleased changes yet._')
-content.append('')
-
-content.append(f'## [{new_version}] - {today}')
-content.append('')
-content.append('- _Placeholder for release notes._')
+    content.append('- _No changes documented._')
 content.append('')
 
 for version, captured_lines in filtered_entries:
-    content.append(f'## [{version}]')
+    content.append(f'## {version}')
     content.append('')
     trimmed = [line for line in captured_lines if line.strip()]
     if trimmed:
