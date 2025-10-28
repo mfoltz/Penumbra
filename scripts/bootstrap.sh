@@ -99,7 +99,17 @@ ensure_dotnet
 mkdir -p "$BEPINEX_PLUGIN_DIR"
 
 dotnet restore "$PROJECT"
-dotnet build "$PROJECT" --configuration "$CONFIGURATION" -p:RunGenerateREADME=false
+
+RUN_GENERATE_README="${RUN_GENERATE_README:-true}"
+build_args=("$PROJECT" --configuration "$CONFIGURATION")
+
+shopt -s nocasematch
+if [[ "$RUN_GENERATE_README" == "false" ]]; then
+    build_args+=("-p:RunGenerateREADME=false")
+fi
+shopt -u nocasematch
+
+dotnet build "${build_args[@]}"
 
 DLL_PATH="$REPO_ROOT/bin/$CONFIGURATION/net6.0/Penumbra.dll"
 
