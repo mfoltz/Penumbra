@@ -161,7 +161,8 @@ for line in raw_lines:
     detected = None
     if heading_match:
         label = heading_match.group('bracket') or heading_match.group('plain')
-        candidate = label.split('-', 1)[0].strip()
+        head, sep, _ = label.partition(' - ')
+        candidate = head.strip() if sep else label.strip()
         detected = '__UNRELEASED__' if candidate.lower() == 'unreleased' else candidate
     elif backtick_match:
         detected = backtick_match.group(1).strip()
