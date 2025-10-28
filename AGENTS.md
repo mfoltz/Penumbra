@@ -1,4 +1,4 @@
-# Penumbra agent playbook
+# AGENTS.md
 
 ## Setup commands
 - Run `./scripts/bootstrap.sh` from the repository root. It installs the required .NET SDKs into `.dotnet/` when missing, restores NuGet packages, builds the plugin, and copies the DLL into `${BEPINEX_PLUGIN_DIR:-/workspace/plugins}`.
