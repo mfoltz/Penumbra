@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT="$SCRIPT_DIR/Penumbra.csproj"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT="$REPO_ROOT/Penumbra.csproj"
 CONFIGURATION="${CONFIGURATION:-Release}"
 BEPINEX_PLUGIN_DIR="${BEPINEX_PLUGIN_DIR:-/workspace/plugins}"
-LOCAL_DOTNET_DIR="$SCRIPT_DIR/.dotnet"
+LOCAL_DOTNET_DIR="$REPO_ROOT/.dotnet"
 
 DOTNET_CHANNELS_DEFAULT="8.0 6.0"
 if [ -n "${DOTNET_CHANNEL:-}" ] && [ -z "${DOTNET_CHANNELS:-}" ]; then
@@ -100,7 +101,7 @@ mkdir -p "$BEPINEX_PLUGIN_DIR"
 dotnet restore "$PROJECT"
 dotnet build "$PROJECT" --configuration "$CONFIGURATION" -p:RunGenerateREADME=false
 
-DLL_PATH="$SCRIPT_DIR/bin/$CONFIGURATION/net6.0/Penumbra.dll"
+DLL_PATH="$REPO_ROOT/bin/$CONFIGURATION/net6.0/Penumbra.dll"
 
 if [ ! -f "$DLL_PATH" ]; then
     echo "Build failed: $DLL_PATH not found." >&2

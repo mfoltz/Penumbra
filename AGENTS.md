@@ -1,63 +1,21 @@
-# AGENTS.md: Universal Principles for CSharp and General Programming
+# Penumbra agent playbook
 
-This guide provides universal, intelligent principles and patterns to master C# coding effectively, applicable across any project or repository.
+This repository ships a set of automation helpers and formatting rules. Follow the guidance below whenever you modify files under this tree.
 
-## 🧠 Structured Reasoning
+## Environment & tooling
+- Run `./scripts/bootstrap.sh` from the repository root to provision .NET SDKs locally (installs into `.dotnet/` when required), restore NuGet dependencies, build the plugin, and copy the DLL to `${BEPINEX_PLUGIN_DIR:-/workspace/plugins}`.
+- Override SDK channels with `DOTNET_CHANNELS` (space-separated; defaults to `"8.0 6.0"`). The legacy `DOTNET_CHANNEL` variable is honored only when `DOTNET_CHANNELS` is unset.
+- Set `BEPINEX_PLUGIN_DIR` when you need the DLL copied somewhere other than `/workspace/plugins`.
 
-* **Single Responsibility Principle (SRP)**: Every class and method should have one clearly defined responsibility.
-* **Explicit Intent**: Write self-descriptive methods and classes, avoiding ambiguous or overly general names.
-* **Readability First**: Prioritize readability over cleverness. The intent of your code should be immediately clear to others.
+## Build & test workflow
+- Use `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` for manual builds so the README generator stays disabled outside of CI.
+- After a successful build, validate changes with `dotnet test ./Penumbra.csproj --configuration Release --no-build`.
 
-## 🎯 Clarity & Explicitness
+## Formatting & style
+- Respect `.editorconfig` at the repo root: C# files use 4-space indentation, spaces instead of tabs, CRLF line endings, and no implicit trailing newline insertion.
+- Keep `using` directives sorted as the IDE/tooling enforces them and place them outside the namespace declaration (per `csharp_using_directive_placement = outside_namespace`).
+- Prefer explicit type names over `var` unless the type is a built-in or crystal-clear from the assignment (the configuration disables the implicit forms).
 
-* Clearly specify the purpose, parameters, and return values of each method using XML documentation comments.
-* Choose names that explicitly describe intent (e.g., `CalculateTotalPrice()` instead of `Calculate()` or `CalcTP()`).
-* Favor descriptive variable names (`customerAge` rather than `ca`).
-
-## 🔄 Iterative Improvement
-
-* Implement incremental changes and continuously validate with unit tests.
-* Regularly refactor code to simplify complexity and improve maintainability.
-* Conduct periodic peer reviews to integrate diverse perspectives and catch overlooked issues.
-
-## 🛡️ Robustness & Safety Nets
-
-* Write unit tests covering critical paths and edge cases to ensure code stability and correctness.
-* Leverage static code analysis tools like Roslyn analyzers and StyleCop to maintain high-quality standards.
-* Use assertions liberally to document and enforce assumptions in code logic.
-
-## 🏗️ Universal Design Patterns
-
-* **Factory & Abstract Factory**: For managing object creation and reducing direct dependencies.
-* **Strategy Pattern**: To encapsulate varying algorithms and make behaviors interchangeable.
-* **Repository Pattern**: For abstracting data layer logic and enhancing testability.
-* **Dependency Injection**: Use constructor injection to clearly define dependencies and improve modularity.
-
-## ♻️ Maintainable Code Habits
-
-* Avoid magic numbers; define constants or configuration settings instead.
-* Keep methods short (ideally fewer than 30 lines) to enhance readability and testability.
-* Organize methods logically within classes (constructors first, public methods next, followed by private methods).
-
-## 🚦 Consistent Coding Style
-
-* Adhere to established naming conventions:
-
-  * Methods & Variables: `PascalCase`
-  * Private fields & parameters: `camelCase`
-  * Constants: `UPPERCASE_WITH_UNDERSCORES`
-* Consistently format your code using tools like `.editorconfig`.
-
-## 📈 Performance Awareness
-
-* Understand the performance implications of collections (prefer using `Dictionary` for key-value lookups over lists).
-* Minimize object allocations, especially within loops or performance-critical paths.
-* Favor efficient data structures and algorithms suited to the task at hand (e.g., HashSets for uniqueness checks).
-
-## 🛠️ Continuous Learning & Reflection
-
-* Periodically review code written previously to identify opportunities for improvement.
-* Stay updated on language features and industry best practices.
-* Learn from established open-source C# projects and communities.
-
-By internalizing these universal principles, you build a solid foundation to become a proficient and thoughtful C# developer.
+## Code review expectations
+- Break down changes into focused commits with descriptive messages.
+- Update documentation and configuration alongside code when workflows change so future contributors can rely on the README and this guide.
