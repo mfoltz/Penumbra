@@ -6,7 +6,9 @@
 - When working outside `scripts/bootstrap.sh`, ensure the .NET 7 SDK (`7.0.x`) is installed locally and verify with `dotnet --list-sdks` before invoking any builds or tests.
 
 ## Testing instructions
-- Prefer the bootstrap script for routine verification; otherwise run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` to match CI arguments without regenerating the README.
+- Prefer the bootstrap script for routine verification; otherwise run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` to match CI arguments without regenerating the README—overriding `RunGenerateREADME=false` mirrors CI behavior and prevents incidental README churn during feature work.
+- When you actually need to refresh the README (for example after editing files under `Commands/`), run `dotnet build ./Penumbra.csproj --configuration Release` without that override or explicitly set `RunGenerateREADME=true` so the generator runs.
+- Commit the regenerated README alongside related command updates; the generator job skips in GitHub Actions, so reviewers expect documentation diffs only when you include them in the PR.
 - After a successful build, execute `dotnet test ./Penumbra.csproj --configuration Release --no-build` so tests run against the freshly produced Release binaries.
 
 ## Code style conventions
