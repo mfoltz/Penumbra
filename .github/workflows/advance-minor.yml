@@ -19,7 +19,9 @@ on:
 jobs:
   advance:
     uses: ./.github/workflows/advance-version.yml
-    permissions: inherit
+    permissions:
+      contents: write
+      pull-requests: write
     secrets: inherit
     with:
       increment: minor
