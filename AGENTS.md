@@ -1,21 +1,22 @@
-# Penumbra agent playbook
+# AGENTS.md
 
-This repository ships a set of automation helpers and formatting rules. Follow the guidance below whenever you modify files under this tree.
+## Setup commands
+- Run `./scripts/bootstrap.sh` from the repository root. It installs the required .NET SDKs into `.dotnet/` when missing, restores NuGet packages, builds the plugin, and copies the DLL into `${BEPINEX_PLUGIN_DIR:-/workspace/plugins}`.
+- Override SDK channels via the `DOTNET_CHANNELS` environment variable (space-separated, default `"8.0 6.0"`). The legacy `DOTNET_CHANNEL` fallback is honored only when `DOTNET_CHANNELS` is unset.
+- When working outside `scripts/bootstrap.sh`, ensure the .NET 7 SDK (`7.0.x`) is installed locally and verify with `dotnet --list-sdks` before invoking any builds or tests.
 
-## Environment & tooling
-- Run `./scripts/bootstrap.sh` from the repository root to provision .NET SDKs locally (installs into `.dotnet/` when required), restore NuGet dependencies, build the plugin, and copy the DLL to `${BEPINEX_PLUGIN_DIR:-/workspace/plugins}`.
-- Override SDK channels with `DOTNET_CHANNELS` (space-separated; defaults to `"8.0 6.0"`). The legacy `DOTNET_CHANNEL` variable is honored only when `DOTNET_CHANNELS` is unset.
-- Set `BEPINEX_PLUGIN_DIR` when you need the DLL copied somewhere other than `/workspace/plugins`.
+## Testing instructions
+- Prefer the bootstrap script for routine verification; otherwise run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` to match CI arguments without regenerating the README.
+- After a successful build, execute `dotnet test ./Penumbra.csproj --configuration Release --no-build` so tests run against the freshly produced Release binaries.
 
-## Build & test workflow
-- Use `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` for manual builds so the README generator stays disabled outside of CI.
-- After a successful build, validate changes with `dotnet test ./Penumbra.csproj --configuration Release --no-build`.
+## Code style conventions
+- Follow the repository `.editorconfig`: C# files use 4-space indentation, spaces instead of tabs, CRLF newlines, and do not auto-insert a trailing newline.
+- Keep `using` directives sorted without separating `System` imports, and place them outside the namespace declaration (`csharp_using_directive_placement = outside_namespace`).
+- Prefer explicit type names rather than `var` except for built-in types or assignments where the type is unambiguous; align other language and formatting choices with the `.editorconfig` defaults.
 
-## Formatting & style
-- Respect `.editorconfig` at the repo root: C# files use 4-space indentation, spaces instead of tabs, CRLF line endings, and no implicit trailing newline insertion.
-- Keep `using` directives sorted as the IDE/tooling enforces them and place them outside the namespace declaration (per `csharp_using_directive_placement = outside_namespace`).
-- Prefer explicit type names over `var` unless the type is a built-in or crystal-clear from the assignment (the configuration disables the implicit forms).
-
-## Code review expectations
-- Break down changes into focused commits with descriptive messages.
-- Update documentation and configuration alongside code when workflows change so future contributors can rely on the README and this guide.
+## Workflow expectations
+- Maintain Semantic Versioning. Bump major for breaking saves/client requirements, minor for new backwards-compatible features, patch for fixes or balance tweaks.
+- Keep `<Version>` in `Penumbra.csproj`, `thunderstore.toml`, and the `## Unreleased` section of `CHANGELOG.md` in sync. Use the GitHub Actions `Advance version` workflows to update them when preparing a release; these workflows also satisfy the CI version guard.
+- The guarded `Build` workflow runs on `codex` pushes. Increment the version before opening a release PR so CI passes, or manually dispatch the workflow to bypass the guard for reruns.
+- For prereleases, dispatch the `Build` workflow with `ready_to_ship=true` to publish artifacts to a prerelease tag. Final Thunderstore releases depend on a published GitHub release backed by that build; approve the protected environment when the `Release` workflow prompts.
+- Update documentation and configuration alongside code changes so README guidance and this playbook remain accurate for future contributors.
