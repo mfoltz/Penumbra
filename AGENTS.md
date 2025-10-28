@@ -2,8 +2,9 @@
 
 ## Setup commands
 - Run `./scripts/bootstrap.sh` from the repository root. It installs the required .NET SDKs into `.dotnet/` when missing, restores NuGet packages, builds the plugin, and copies the DLL into `${BEPINEX_PLUGIN_DIR:-/workspace/plugins}`.
-- Override SDK channels via the `DOTNET_CHANNELS` environment variable (space-separated, default `"8.0 6.0"`). The legacy `DOTNET_CHANNEL` fallback is honored only when `DOTNET_CHANNELS` is unset.
-- When working outside `scripts/bootstrap.sh`, ensure the .NET 7 SDK (`7.0.x`) is installed locally and verify with `dotnet --list-sdks` before invoking any builds or tests.
+- Override SDK channels via the `DOTNET_CHANNELS` environment variable (space-separated, default `"8.0 6.0"`). The bootstrap script installs both the 8.0 and 6.0 channels so the preview compiler features stay available while matching the runtime target; mirror that mix when installing the SDK manually. The legacy `DOTNET_CHANNEL` fallback is honored only when `DOTNET_CHANNELS` is unset.
+- When working outside `scripts/bootstrap.sh`, ensure a modern SDK that understands the preview features in `Penumbra.csproj` is present—while the project still targets `net6.0`, the C# preview language features require the .NET 8 (or at least 7) SDK. Verify your local install with `dotnet --list-sdks` before invoking any builds or tests.
+  You should see both `8.0.x` and `6.0.x` entries; the newer SDK provides the compiler features while the 6.0 SDK matches the runtime target.
 
 ## Testing instructions
 - Prefer the bootstrap script for routine verification; otherwise run `dotnet build ./Penumbra.csproj --configuration Release -p:RunGenerateREADME=false` to match CI arguments without regenerating the README—overriding `RunGenerateREADME=false` mirrors CI behavior and prevents incidental README churn during feature work.
