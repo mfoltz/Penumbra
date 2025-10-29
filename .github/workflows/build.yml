@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       is_prerelease_ready: ${{ github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/codex' && github.event_name == 'workflow_dispatch' && github.event.inputs.ready_to_ship == 'true') }}
+      RUN_GENERATE_README: true
 
     steps:
       - name: Checkout
@@ -127,7 +128,7 @@ jobs:
 
       - name: Build (Release)
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
-        run: dotnet build "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release -p:Version=${{ env.version }}
+        run: dotnet build "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release -p:Version=${{ env.version }} -p:RunGenerateREADME=true
 
       - name: Test (Release)
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'

@@ -45,12 +45,6 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
   Pace around or stay put.
 
 ## Commands
-- `.penumbra spawnmerchant [#]` 🔒
-  - Spawns merchant as configured at mouse; defaults to major noctem trader (can set per merchant in config).
-  - Shortcut: *.pen sm [#]*
-- `.penumbra removemerchant` 🔒
-  - Removes hovered merchant.
-  - Shortcut: *.pen rm*
 - `.penumbra redeemtokens`
   - Redeems tokens for configured item.
   - Shortcut: *.pen rt*
@@ -63,6 +57,12 @@ Jairon O.; Odjit; Jera; Kokuren TCG and Gaming Shop; Rexxn; Eduardo G.; DirtyMik
 - `.penumbra getdaily`
   - Check time remaining or receive daily login reward if eligible.
   - Shortcut: *.pen gd*
+- `.penumbra spawnmerchant [#]` 🔒
+  - Spawns merchant as configured at mouse; defaults to major noctem trader (can set per merchant in config).
+  - Shortcut: *.pen sm [#]*
+- `.penumbra removemerchant` 🔒
+  - Removes hovered merchant.
+  - Shortcut: *.pen rm*
 
 ## Development
 
