@@ -127,7 +127,7 @@ jobs:
 
       - name: Build (Release)
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
-        run: dotnet build "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release -p:Version=${{ env.version }} -p:RunGenerateREADME=false
+        run: dotnet build "${{ steps.discover_csproj.outputs.csproj_file }}" --configuration Release -p:Version=${{ env.version }}
 
       - name: Test (Release)
         if: steps.version_guard.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
