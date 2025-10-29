@@ -7,9 +7,9 @@
   You should see both `8.0.x` and `6.0.x` entries; the newer SDK provides the compiler features while the 6.0 SDK matches the runtime target.
 
 ## Testing instructions
-- Prefer the bootstrap script for routine verification; local builds now regenerate the README automatically, so `./scripts/bootstrap.sh` ensures docs stay in sync while compiling the plugin.
-- In the rare cases where you must skip README generation (for example, during smoke builds on slower machines), set `RUN_GENERATE_README=false` in your environment **or** pass `-p:RunGenerateREADME=false` to `dotnet build`—both toggles share the same MSBuild property so opt-outs behave consistently.
-- Commit the regenerated README alongside related command updates; CI already exports `GITHUB_ACTIONS=true`/`CI=true`, so the generator target skips automatically in pipeline runs and reviewers only see documentation diffs when you check them in locally.
+- Prefer the bootstrap script for routine verification; local and CI builds now regenerate the README automatically, so `./scripts/bootstrap.sh` keeps documentation and binaries aligned while compiling the plugin.
+- When automation churn becomes noisy (for example, on quick smoke builds), opt out of README generation by setting `RUN_GENERATE_README=false` **or** adding `-p:RunGenerateREADME=false` to `dotnet build`; both switches map to the same MSBuild property and apply locally as well as in pipelines when explicitly provided.
+- Commit the regenerated README alongside related command updates so reviewers see the expected documentation diffs that come from the auto-refresh step in CI.
 - After a successful build, execute `dotnet test ./Penumbra.csproj --configuration Release --no-build` so tests run against the freshly produced Release binaries.
 
 ## Code style conventions
