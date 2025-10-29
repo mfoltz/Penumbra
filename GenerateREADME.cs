@@ -21,8 +21,22 @@ internal static class GenerateREADME // need to tidy up some and redo the config
         = [];
     public static void Main(string[] args)
     {
-        // Check if we're running in a GitHub Actions environment and skip
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
+        string runGenerateReadme = Environment.GetEnvironmentVariable("RUN_GENERATE_README") ?? string.Empty;
+        bool skipGeneration = false;
+
+        if (!string.IsNullOrEmpty(runGenerateReadme))
+        {
+            if (bool.TryParse(runGenerateReadme, out bool shouldRun))
+            {
+                skipGeneration = !shouldRun;
+            }
+            else if (string.Equals(runGenerateReadme, "0", StringComparison.OrdinalIgnoreCase))
+            {
+                skipGeneration = true;
+            }
+        }
+
+        if (skipGeneration)
         {
             Console.WriteLine("GenerateREADME skipped during GitHub Actions build.");
             return;
