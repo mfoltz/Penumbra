@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-        <PropertyGroup Condition="'$(RunGenerateREADME)' == '' and (('$(GITHUB_ACTIONS)' == 'true') or ('$(CI)' == 'true'))">
-        <RunGenerateREADME>false</RunGenerateREADME>
-        </PropertyGroup>
-
         <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -21,7 +17,9 @@
         <OutputType>Exe</OutputType>
         <UseAppHost>false</UseAppHost>
         <NuGetAudit>false</NuGetAudit>
+        <RunGenerateREADME Condition="'$(RunGenerateREADME)' == '' and '$(RUN_GENERATE_README)' != ''">$(RUN_GENERATE_README)</RunGenerateREADME>
         <RunGenerateREADME Condition="'$(RunGenerateREADME)' == ''">true</RunGenerateREADME>
+        <SkipGenerateREADME Condition="'$(SkipGenerateREADME)' == '' and (('$(GITHUB_ACTIONS)' == 'true') or ('$(CI)' == 'true'))">true</SkipGenerateREADME>
         </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -45,8 +43,8 @@
                 <Message Text="DLL Server Copied OK" Importance="High" />
         </Target>
 	
-        <Target Name="GenerateReadMe" Condition="'$(RunGenerateREADME)' == 'true' and '$(GITHUB_ACTIONS)' != 'true' and '$(CI)' != 'true'" AfterTargets="Build">
-		<Exec Command="dotnet &quot;$(TargetDir)$(AssemblyName).dll&quot; &quot;$(ProjectDir)Commands&quot; &quot;$(ProjectDir)README.md&quot;" />
-	</Target>
+        <Target Name="GenerateReadMe" Condition="'$(RunGenerateREADME)' == 'true' and '$(SkipGenerateREADME)' != 'true'" AfterTargets="Build">
+                <Exec Command="dotnet &quot;$(TargetDir)$(AssemblyName).dll&quot; &quot;$(ProjectDir)Commands&quot; &quot;$(ProjectDir)README.md&quot;" />
+        </Target>
 	
 </Project>
