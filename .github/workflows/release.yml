@@ -93,20 +93,27 @@ jobs:
         shell: bash
         env:
           PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
-          file_version=$(awk -F '"' '/^versionNumber/ {print $2}' thunderstore.toml)
+          if ! thunderstore_content=$(git show "$RELEASE_TAG:thunderstore.toml" 2>/dev/null); then
+            echo "Unable to read thunderstore.toml from tag '$RELEASE_TAG'." >&2
+            echo "Ensure the release tag exists and contains thunderstore.toml." >&2
+            exit 1
+          fi
+
+          file_version=$(awk -F '"' '/^versionNumber/ {print $2}' <<< "$thunderstore_content")
           if [[ -z "$file_version" ]]; then
-            echo "Unable to locate versionNumber in thunderstore.toml." >&2
+            echo "Unable to locate versionNumber in thunderstore.toml at tag '$RELEASE_TAG'." >&2
             exit 1
           fi
 
           if [[ "$file_version" != "$PACKAGE_VERSION" ]]; then
-            echo "Package version '$PACKAGE_VERSION' does not match thunderstore.toml versionNumber '$file_version'." >&2
-            echo "Update thunderstore.toml or adjust the workflow inputs before publishing." >&2
+            echo "Package version '$PACKAGE_VERSION' does not match thunderstore.toml versionNumber '$file_version' at tag '$RELEASE_TAG'." >&2
+            echo "Update thunderstore.toml in the release tag or adjust the workflow inputs before publishing." >&2
             exit 1
           fi
 
-          echo "Verified thunderstore.toml versionNumber matches '$PACKAGE_VERSION'."
+          echo "Verified thunderstore.toml versionNumber matches '$PACKAGE_VERSION' at tag '$RELEASE_TAG'."
 
       - name: Publish build to Thunderstore
         run: |
