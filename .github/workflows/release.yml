@@ -2,6 +2,17 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (e.g., v1.2.3 or v1.2.3-pre). Leave blank to use the latest tag.'
+        required: false
+        type: string
+        default: ''
+      package_version:
+        description: 'Override package version (defaults to the sanitized release tag, e.g., 1.2.3). Use this to publish X.Y.Z from a vX.Y.Z-pre tag.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   release_on_thunderstore:
@@ -18,15 +29,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract Latest Tag
-        id: extract_tag
-        run: |
-          latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+      - name: Determine release tag and package version
         shell: bash
+        run: |
+          sanitize_version() {
+            local input="$1"
+            if [[ "${input}" == v* || "${input}" == V* ]]; then
+              input="${input:1}"
+            fi
+            input="${input%%-*}"
+            echo "$input"
+          }
 
-      - name: Set Release Tag
-        run: echo "RELEASE_TAG=${{ env.latest_tag }}" >> $GITHUB_ENV
+          latest_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
+          release_tag_input='${{ inputs.release_tag }}'
+          package_version_input='${{ inputs.package_version }}'
+
+          if [[ -n "$release_tag_input" ]]; then
+            release_tag="$release_tag_input"
+          else
+            release_tag="$latest_tag"
+          fi
+
+          sanitized_release_tag=$(sanitize_version "$release_tag")
+
+          if [[ -n "$package_version_input" ]]; then
+            package_version=$(sanitize_version "$package_version_input")
+          else
+            package_version="$sanitized_release_tag"
+          fi
+
+          if [[ -z "$sanitized_release_tag" ]]; then
+            echo "Failed to derive a sanitized version from release tag '$release_tag'." >&2
+            exit 1
+          fi
+
+          if [[ -z "$package_version" ]]; then
+            echo "Package version could not be determined." >&2
+            exit 1
+          fi
+
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Package version '$package_version' is not in Major.Minor.Patch format after sanitization." >&2
+            exit 1
+          fi
+
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "SANITIZED_RELEASE_VERSION=$sanitized_release_tag" >> "$GITHUB_ENV"
+          echo "PACKAGE_VERSION=$package_version" >> "$GITHUB_ENV"
+
+          echo "Using release tag '$release_tag' and package version '$package_version'."
 
       - name: Download Release
         run: |
@@ -37,9 +89,28 @@ jobs:
       - name: Install Thunderstore CLI (tcli)
         run: dotnet tool install --global tcli
 
+      - name: Validate package version against thunderstore.toml
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+        run: |
+          file_version=$(awk -F '"' '/^versionNumber/ {print $2}' thunderstore.toml)
+          if [[ -z "$file_version" ]]; then
+            echo "Unable to locate versionNumber in thunderstore.toml." >&2
+            exit 1
+          fi
+
+          if [[ "$file_version" != "$PACKAGE_VERSION" ]]; then
+            echo "Package version '$PACKAGE_VERSION' does not match thunderstore.toml versionNumber '$file_version'." >&2
+            echo "Update thunderstore.toml or adjust the workflow inputs before publishing." >&2
+            exit 1
+          fi
+
+          echo "Verified thunderstore.toml versionNumber matches '$PACKAGE_VERSION'."
+
       - name: Publish build to Thunderstore
         run: |
-          trimmed_tag=${RELEASE_TAG:1}
-          tcli publish --token ${{ secrets.THUNDERSTORE_KEY }} --package-version $trimmed_tag
+          tcli publish --token ${{ secrets.THUNDERSTORE_KEY }} --package-version "$PACKAGE_VERSION"
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
