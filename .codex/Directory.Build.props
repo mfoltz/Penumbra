@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Let modern compilers be used when available -->
+    <LangVersion>preview</LangVersion>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
