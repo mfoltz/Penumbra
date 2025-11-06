@@ -65,6 +65,8 @@ jobs:
           import re
           from pathlib import Path
 
+          from scripts.versioning import compute_next_version
+
           csproj_path = Path('Penumbra.csproj')
           match = re.search(r'<Version>([^<]+)</Version>', csproj_path.read_text(encoding='utf-8'))
           if not match:
@@ -76,27 +78,10 @@ jobs:
               raise SystemExit(f'Unsupported increment: {increment!r}')
 
           label = os.environ.get('PRERELEASE_LABEL', '').strip()
-          base_version = current_version.split('-')[0]
           try:
-              major, minor, patch = [int(part) for part in base_version.split('.')]
+              new_version = compute_next_version(current_version, increment, label)
           except ValueError as exc:
-              raise SystemExit(f'Current version is not a valid semver: {current_version!r}') from exc
-
-          if increment == 'major':
-              major += 1
-              minor = 0
-              patch = 0
-          elif increment == 'minor':
-              minor += 1
-              patch = 0
-          else:
-              patch += 1
-
-          clean_label = re.sub(r'[^0-9A-Za-z.-]+', '-', label).strip('-')
-          if clean_label:
-              new_version = f"{major}.{minor}.{patch}-{clean_label}"
-          else:
-              new_version = f"{major}.{minor}.{patch}"
+              raise SystemExit(str(exc)) from exc
 
           slug = re.sub(r'[^0-9A-Za-z]+', '-', new_version).strip('-').lower() or 'version'
 
