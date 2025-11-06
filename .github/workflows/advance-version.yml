@@ -37,6 +37,10 @@ on:
         description: "The version produced by this workflow"
         value: ${{ jobs.advance.outputs.new_version }}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   advance:
     runs-on: ubuntu-latest
