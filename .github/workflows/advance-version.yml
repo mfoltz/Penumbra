@@ -237,10 +237,17 @@ PY
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           target='${{ env.TARGET_BRANCH }}'
+          encoded_target=$(TARGET="$target" python - <<'PY'
+import os
+import urllib.parse
+
+print(urllib.parse.quote(os.environ["TARGET"], safe=""))
+PY
+          )
           status=$(curl -sS -o /tmp/branch_protection -w "%{http_code}" \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/${{ github.repository }}/branches/${target}/protection)
+            https://api.github.com/repos/${{ github.repository }}/branches/${encoded_target}/protection)
           if [ "$status" = "200" ]; then
             echo "protected=true" >> "$GITHUB_OUTPUT"
           elif [ "$status" = "404" ]; then
