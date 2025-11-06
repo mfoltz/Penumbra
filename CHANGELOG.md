@@ -1,7 +1,6 @@
-# Changelog
+# CHANGELOG.md
 
-## Unreleased
-
+## WIP
 - Added player-to-player token trading via `.pen tradetokens`.
 
 ## 1.2.8
