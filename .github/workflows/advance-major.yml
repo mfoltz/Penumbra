@@ -22,7 +22,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    secrets: inherit
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     with:
       increment: major
       target_branch: ${{ inputs.target_branch }}
