@@ -19,7 +19,7 @@
 
 ## Workflow expectations
 - Maintain Semantic Versioning. Bump major for breaking saves/client requirements, minor for new backwards-compatible features, patch for fixes or balance tweaks.
-- Keep `<Version>` in `Penumbra.csproj`, `thunderstore.toml`, and the `## Unreleased` section of `CHANGELOG.md` in sync. Use the GitHub Actions `Advance version` workflows to update them when preparing a release; these workflows also satisfy the CI version guard.
+- Keep `<Version>` in `Penumbra.csproj`, `thunderstore.toml`, and the `## WIP` section of `CHANGELOG.md` in sync. Use the GitHub Actions `Advance version` workflows to update them when preparing a release; these workflows also satisfy the CI version guard.
 - The guarded `Build` workflow runs on `codex` pushes. Increment the version before opening a release PR so CI passes, or manually dispatch the workflow to bypass the guard for reruns.
 - For prereleases, dispatch the `Build` workflow with `ready_to_ship=true` to publish artifacts to a prerelease tag. Final Thunderstore releases depend on a published GitHub release backed by that build; approve the protected environment when the `Release` workflow prompts.
 - Update documentation and configuration alongside code changes so README guidance and this playbook remain accurate for future contributors.
