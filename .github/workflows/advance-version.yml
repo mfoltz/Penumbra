@@ -152,7 +152,7 @@ jobs:
                   label = heading_match.group('bracket') or heading_match.group('plain')
                   head, sep, _ = label.partition(' - ')
                   candidate = head.strip() if sep else label.strip()
-                  detected = '__UNRELEASED__' if candidate.lower() == 'unreleased' else candidate
+                  detected = '__UNRELEASED__' if candidate.lower() in {'unreleased', 'wip'} else candidate
               elif backtick_match:
                   detected = backtick_match.group(1).strip()
 
@@ -176,17 +176,18 @@ jobs:
           seen_versions = set()
           for version, captured_lines in entries:
               version_key = version.strip()
-              if version_key.lower() == 'unreleased':
+              if version_key.lower() in {'unreleased', 'wip'}:
                   continue
               if version_key == new_version or version_key in seen_versions:
                   continue
               seen_versions.add(version_key)
               filtered_entries.append((version_key, captured_lines))
 
-          placeholder = '- _No unreleased changes yet._'
-          content = ['# Changelog', '', '## Unreleased', '']
+          placeholder = '- _No WIP changes yet._'
+          content = ['# CHANGELOG.md', '', '## WIP', '']
 
-          clean_unreleased = [line for line in unreleased_lines if line.strip() and line.strip() != placeholder]
+          placeholders_to_skip = {placeholder, '- _No unreleased changes yet._'}
+          clean_unreleased = [line for line in unreleased_lines if line.strip() and line.strip() not in placeholders_to_skip]
           moved_lines = clean_unreleased
 
           content.append(placeholder)
